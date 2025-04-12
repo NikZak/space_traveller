@@ -1,8 +1,8 @@
 import { Spaceship } from "./Spaceship";
-import { Laser } from "./Laser";
+import type { Laser } from "./Laser";
 import { Planet } from "./Planet";
 import { Enemy } from "./Enemy";
-import { Rocket } from "./Rocket";
+import type { Rocket } from "./Rocket";
 
 export interface GameState {
   spaceship: Spaceship;
@@ -95,8 +95,8 @@ export class GameEngine {
 
   private spawnEnemy(): void {
     // Determine spawn position (outside the screen)
-    let x = 0,
-      y = 0;
+    let x = 0;
+    let y = 0;
     const side = Math.floor(Math.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
 
     // Get visible dimensions
@@ -166,7 +166,7 @@ export class GameEngine {
   }
 
   private handleKeyDown(e: KeyboardEvent): void {
-    if (this.gameState.keys.hasOwnProperty(e.key)) {
+    if (Object.prototype.hasOwnProperty.call(this.gameState.keys, e.key)) {
       this.gameState.keys[e.key] = true;
     }
 
@@ -177,7 +177,7 @@ export class GameEngine {
   }
 
   private handleKeyUp(e: KeyboardEvent): void {
-    if (this.gameState.keys.hasOwnProperty(e.key)) {
+    if (Object.prototype.hasOwnProperty.call(this.gameState.keys, e.key)) {
       this.gameState.keys[e.key] = false;
     }
   }
@@ -340,27 +340,27 @@ export class GameEngine {
     this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
     // Draw planets
-    this.gameState.planets.forEach((planet) => {
+    for (const planet of this.gameState.planets) {
       planet.draw(this.ctx);
-    });
+    }
 
     // Draw enemies
-    this.gameState.enemies.forEach((enemy) => {
+    for (const enemy of this.gameState.enemies) {
       enemy.draw(this.ctx);
-    });
+    }
 
     // Draw rockets
-    this.gameState.rockets.forEach((rocket) => {
+    for (const rocket of this.gameState.rockets) {
       rocket.draw(this.ctx);
-    });
+    }
 
     // Draw spaceship
     this.gameState.spaceship.draw(this.ctx);
 
     // Draw lasers
-    this.gameState.lasers.forEach((laser) => {
+    for (const laser of this.gameState.lasers) {
       laser.draw(this.ctx);
-    });
+    }
 
     // Draw score
     this.ctx.font = "24px Arial";
