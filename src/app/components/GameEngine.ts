@@ -237,8 +237,20 @@ export class GameEngine {
 
       for (const planet of planets) {
         if (planet.checkCollision(enemy.x, enemy.y, enemy.size)) {
-          // Enemy dies when hitting a planet
+          // Enemy dies when hitting a planet and awards points
           enemy.active = false;
+          // Add score based on enemy type
+          switch (enemy.type) {
+            case "scout":
+              this.gameState.score += settings.enemies.scout_score;
+              break;
+            case "fighter":
+              this.gameState.score += settings.enemies.fighter_score;
+              break;
+            case "destroyer":
+              this.gameState.score += settings.enemies.destroyer_score;
+              break;
+          }
           break;
         }
       }
@@ -251,8 +263,9 @@ export class GameEngine {
 
       for (const planet of planets) {
         if (planet.checkCollision(rocket.x, rocket.y, rocket.size)) {
-          // Rocket disappears when hitting a planet
+          // Rocket disappears when hitting a planet and awards points
           rocket.active = false;
+          this.gameState.score += settings.rockets.rocket_score;
           break;
         }
       }

@@ -19,6 +19,10 @@ export class Enemy {
   glowDirection: number;
   pulseSpeed: number;
   devicePixelRatio: number;
+  targetRotation: number;
+  rotationSpeed: number;
+  currentSpeed: number; // For destroyer acceleration
+  targetSpeed: number; // For destroyer acceleration
 
   constructor(
     x: number,
@@ -34,37 +38,47 @@ export class Enemy {
     this.glowIntensity = 0.5;
     this.glowDirection = 1;
     this.devicePixelRatio = devicePixelRatio;
+    this.targetRotation = 0;
+    this.rotationSpeed = 0.1;
+    this.currentSpeed = 0;
+    this.targetSpeed = 0;
+    this.size = 0;
+    this.health = 0;
+    this.maxHealth = 0;
+    this.shootCooldown = 0;
+    this.color = "#000000";
+    this.eyeColor = "#FFFFFF";
+    this.velocity = { x: 0, y: 0 };
+    this.rotation = 0;
+    this.lastShotTime = 0;
 
     // Set properties based on enemy type
     switch (type) {
       case "scout":
         this.size = settings.game.enemy_sizes.scout;
-        this.health = 30;
-        this.maxHealth = 30;
-        this.shootCooldown = 240;
+        this.health = settings.enemies.scout.health;
+        this.maxHealth = settings.enemies.scout.health;
+        this.shootCooldown = settings.enemies.scout.shoot_cooldown;
         this.color = "#8B0000"; // Dark red
         this.eyeColor = "#FF0000"; // Bright red
         break;
       case "fighter":
         this.size = settings.game.enemy_sizes.fighter;
-        this.health = 60;
-        this.maxHealth = 60;
-        this.shootCooldown = 180;
+        this.health = settings.enemies.fighter.health;
+        this.maxHealth = settings.enemies.fighter.health;
+        this.shootCooldown = settings.enemies.fighter.shoot_cooldown;
         this.color = "#800080"; // Purple
         this.eyeColor = "#FF00FF"; // Magenta
         break;
       case "destroyer":
         this.size = settings.game.enemy_sizes.destroyer;
-        this.health = 100;
-        this.maxHealth = 100;
-        this.shootCooldown = 120;
+        this.health = settings.enemies.destroyer.health;
+        this.maxHealth = settings.enemies.destroyer.health;
+        this.shootCooldown = settings.enemies.destroyer.shoot_cooldown;
         this.color = "#000080"; // Navy blue
         this.eyeColor = "#00FFFF"; // Cyan
         break;
     }
-
-    this.lastShotTime = 0;
-    this.rotation = Math.random() * Math.PI * 2;
 
     // Random initial velocity
     const speed = 1 + Math.random() * 2;
@@ -77,6 +91,126 @@ export class Enemy {
 
   update(canvas: HTMLCanvasElement, playerX: number, playerY: number): void {
     if (!this.active) return;
+
+    // Calculate distance to player
+    const dx = playerX - this.x;
+    const dy = playerY - this.y;
+    const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
+    this.targetRotation = Math.atan2(dy, dx);
+
+    // Update rotation based on enemy type
+    const angleDiff = this.targetRotation - this.rotation;
+    const normalizedAngleDiff =
+      ((angleDiff + Math.PI) % (Math.PI * 2)) - Math.PI;
+
+    switch (this.type) {
+      case "scout": {
+        // Apply rotation inertia
+        const targetRotationSpeed =
+          normalizedAngleDiff * settings.enemies.scout.rotation_speed;
+        this.rotationSpeed =
+          this.rotationSpeed * settings.enemies.scout.rotation_inertia +
+          targetRotationSpeed * (1 - settings.enemies.scout.rotation_inertia);
+        this.rotation += this.rotationSpeed;
+
+        // Calculate target speed based on distance to player
+        if (distanceToPlayer > settings.enemies.scout.acceleration_distance) {
+          this.targetSpeed = settings.enemies.scout.max_speed;
+        } else if (
+          distanceToPlayer < settings.enemies.scout.deceleration_distance
+        ) {
+          this.targetSpeed = settings.enemies.scout.min_speed;
+        }
+
+        // Apply acceleration/deceleration
+        if (this.currentSpeed < this.targetSpeed) {
+          this.currentSpeed = Math.min(
+            this.currentSpeed + settings.enemies.scout.acceleration,
+            this.targetSpeed
+          );
+        } else if (this.currentSpeed > this.targetSpeed) {
+          this.currentSpeed = Math.max(
+            this.currentSpeed - settings.enemies.scout.deceleration,
+            this.targetSpeed
+          );
+        }
+        break;
+      }
+
+      case "fighter": {
+        // Apply rotation inertia
+        const fighterTargetRotationSpeed =
+          normalizedAngleDiff * settings.enemies.fighter.rotation_speed;
+        this.rotationSpeed =
+          this.rotationSpeed * settings.enemies.fighter.rotation_inertia +
+          fighterTargetRotationSpeed *
+            (1 - settings.enemies.fighter.rotation_inertia);
+        this.rotation += this.rotationSpeed;
+
+        // Calculate target speed based on distance to player
+        if (distanceToPlayer > settings.enemies.fighter.acceleration_distance) {
+          this.targetSpeed = settings.enemies.fighter.max_speed;
+        } else if (
+          distanceToPlayer < settings.enemies.fighter.deceleration_distance
+        ) {
+          this.targetSpeed = settings.enemies.fighter.min_speed;
+        }
+
+        // Apply acceleration/deceleration
+        if (this.currentSpeed < this.targetSpeed) {
+          this.currentSpeed = Math.min(
+            this.currentSpeed + settings.enemies.fighter.acceleration,
+            this.targetSpeed
+          );
+        } else if (this.currentSpeed > this.targetSpeed) {
+          this.currentSpeed = Math.max(
+            this.currentSpeed - settings.enemies.fighter.deceleration,
+            this.targetSpeed
+          );
+        }
+        break;
+      }
+
+      case "destroyer": {
+        // Apply rotation inertia
+        const destroyerTargetRotationSpeed =
+          normalizedAngleDiff * settings.enemies.destroyer.rotation_speed;
+        this.rotationSpeed =
+          this.rotationSpeed * settings.enemies.destroyer.rotation_inertia +
+          destroyerTargetRotationSpeed *
+            (1 - settings.enemies.destroyer.rotation_inertia);
+        this.rotation += this.rotationSpeed;
+
+        // Calculate target speed based on distance to player
+        if (
+          distanceToPlayer > settings.enemies.destroyer.acceleration_distance
+        ) {
+          this.targetSpeed = settings.enemies.destroyer.max_speed;
+        } else if (
+          distanceToPlayer < settings.enemies.destroyer.deceleration_distance
+        ) {
+          this.targetSpeed = settings.enemies.destroyer.min_speed;
+        }
+
+        // Apply acceleration/deceleration
+        if (this.currentSpeed < this.targetSpeed) {
+          this.currentSpeed = Math.min(
+            this.currentSpeed + settings.enemies.destroyer.acceleration,
+            this.targetSpeed
+          );
+        } else if (this.currentSpeed > this.targetSpeed) {
+          this.currentSpeed = Math.max(
+            this.currentSpeed - settings.enemies.destroyer.deceleration,
+            this.targetSpeed
+          );
+        }
+        break;
+      }
+    }
+
+    // Apply velocity based on current rotation
+    this.velocity.x = Math.cos(this.rotation) * this.currentSpeed;
+    this.velocity.y = Math.sin(this.rotation) * this.currentSpeed;
 
     // Update position
     this.x += this.velocity.x;
@@ -96,11 +230,6 @@ export class Enemy {
     if (this.x > visibleWidth + this.size) this.x = -this.size;
     if (this.y < -this.size) this.y = visibleHeight + this.size;
     if (this.y > visibleHeight + this.size) this.y = -this.size;
-
-    // Rotate to face player
-    const dx = playerX - this.x;
-    const dy = playerY - this.y;
-    this.rotation = Math.atan2(dy, dx);
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
