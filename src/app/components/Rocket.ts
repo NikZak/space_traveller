@@ -15,7 +15,7 @@ export class Rocket {
     y: number,
     targetX: number,
     targetY: number,
-    speed: number = 2
+    speed = 2
   ) {
     this.x = x;
     this.y = y;
@@ -55,9 +55,9 @@ export class Rocket {
     }
 
     // Fade trail
-    this.trail.forEach((point) => {
+    for (const point of this.trail) {
       point.alpha *= 0.9;
-    });
+    }
 
     // Remove fully faded trail points
     this.trail = this.trail.filter((point) => point.alpha > 0.05);

@@ -4,7 +4,7 @@ export class Planet {
   public radius: number;
   private color: string;
 
-  constructor(x: number, y: number, radius: number, color: string = "#4B0082") {
+  constructor(x: number, y: number, radius: number, color = "#4B0082") {
     this.x = x;
     this.y = y;
     this.radius = radius;
