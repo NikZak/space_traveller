@@ -39,7 +39,11 @@ export class GameEngine {
 
     // Initialize game state
     this.gameState = {
-      spaceship: new Spaceship(canvas.width / 2, canvas.height / 2),
+      spaceship: new Spaceship(
+        canvas.width / 2,
+        canvas.height / 2,
+        this.devicePixelRatio
+      ),
       keys: {
         [settings.controls.up_key]: false,
         [settings.controls.down_key]: false,
@@ -139,30 +143,35 @@ export class GameEngine {
     }
 
     // Create and add the enemy
-    const enemy = new Enemy(x, y, enemyType);
+    const enemy = new Enemy(x, y, enemyType, this.devicePixelRatio);
     this.gameState.enemies.push(enemy);
   }
 
   private handleResize(): void {
-    // Set canvas size to match window size
-    this.canvas.width = window.innerWidth * this.devicePixelRatio;
-    this.canvas.height = window.innerHeight * this.devicePixelRatio;
+    // Get the parent container's dimensions
+    const container = this.canvas.parentElement;
+    if (!container) return;
+
+    // Set canvas size to match container size
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // Set canvas size in physical pixels
+    this.canvas.width = width * this.devicePixelRatio;
+    this.canvas.height = height * this.devicePixelRatio;
 
     // Set display size (CSS pixels)
-    this.canvas.style.width = `${window.innerWidth}px`;
-    this.canvas.style.height = `${window.innerHeight}px`;
+    this.canvas.style.width = `${width}px`;
+    this.canvas.style.height = `${height}px`;
 
     // Scale context to account for device pixel ratio
     this.ctx.scale(this.devicePixelRatio, this.devicePixelRatio);
 
     // Update spaceship position if it's off screen
     const { spaceship } = this.gameState;
-    const visibleWidth = this.canvas.width / this.devicePixelRatio;
-    const visibleHeight = this.canvas.height / this.devicePixelRatio;
-
-    if (spaceship.x > visibleWidth || spaceship.y > visibleHeight) {
-      spaceship.x = visibleWidth / 2;
-      spaceship.y = visibleHeight / 2;
+    if (spaceship.x > width || spaceship.y > height) {
+      spaceship.x = width / 2;
+      spaceship.y = height / 2;
     }
 
     // Regenerate planets on resize
@@ -375,7 +384,12 @@ export class GameEngine {
   private render(): void {
     // Clear canvas
     this.ctx.fillStyle = "#000";
-    this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    this.ctx.fillRect(
+      0,
+      0,
+      this.canvas.width / this.devicePixelRatio,
+      this.canvas.height / this.devicePixelRatio
+    );
 
     // Draw planets
     for (const planet of this.gameState.planets) {
@@ -406,35 +420,40 @@ export class GameEngine {
     this.ctx.textAlign = "right";
     this.ctx.fillText(
       `Score: ${this.gameState.score}`,
-      window.innerWidth - 20,
+      this.canvas.width / this.devicePixelRatio - 20,
       30
     );
 
     // Draw game over message
     if (this.gameState.gameOver) {
       this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      this.ctx.fillRect(
+        0,
+        0,
+        this.canvas.width / this.devicePixelRatio,
+        this.canvas.height / this.devicePixelRatio
+      );
 
       this.ctx.font = "48px Arial";
       this.ctx.fillStyle = "white";
       this.ctx.textAlign = "center";
       this.ctx.fillText(
         "Game Over!",
-        window.innerWidth / 2,
-        window.innerHeight / 2
+        this.canvas.width / this.devicePixelRatio / 2,
+        this.canvas.height / this.devicePixelRatio / 2
       );
 
       this.ctx.font = "24px Arial";
       this.ctx.fillText(
         `Final Score: ${this.gameState.score}`,
-        window.innerWidth / 2,
-        window.innerHeight / 2 + 40
+        this.canvas.width / this.devicePixelRatio / 2,
+        this.canvas.height / this.devicePixelRatio / 2 + 40
       );
 
       this.ctx.fillText(
         "Press R to restart",
-        window.innerWidth / 2,
-        window.innerHeight / 2 + 80
+        this.canvas.width / this.devicePixelRatio / 2,
+        this.canvas.height / this.devicePixelRatio / 2 + 80
       );
     }
   }
@@ -468,7 +487,11 @@ export class GameEngine {
   public restartGame(): void {
     // Reset game state
     this.gameState = {
-      spaceship: new Spaceship(window.innerWidth / 2, window.innerHeight / 2),
+      spaceship: new Spaceship(
+        this.canvas.width / this.devicePixelRatio / 2,
+        this.canvas.height / this.devicePixelRatio / 2,
+        this.devicePixelRatio
+      ),
       keys: {
         [settings.controls.up_key]: false,
         [settings.controls.down_key]: false,

@@ -6,8 +6,15 @@ export class Laser {
   life: number;
   maxLife: number;
   size: number;
+  devicePixelRatio: number;
 
-  constructor(x: number, y: number, rotation: number, speed: number) {
+  constructor(
+    x: number,
+    y: number,
+    rotation: number,
+    speed: number,
+    devicePixelRatio: number = 1
+  ) {
     this.x = x;
     this.y = y;
     this.rotation = rotation;
@@ -18,6 +25,7 @@ export class Laser {
     this.life = 0;
     this.maxLife = 60; // Frames the laser will live for
     this.size = 10; // Base size for the laser
+    this.devicePixelRatio = devicePixelRatio;
   }
 
   update(canvas: HTMLCanvasElement): boolean {
@@ -26,8 +34,8 @@ export class Laser {
     this.y += this.velocity.y;
 
     // Check if out of bounds - use the CSS dimensions (visible area) instead of canvas dimensions
-    const visibleWidth = canvas.width / (window.devicePixelRatio || 1);
-    const visibleHeight = canvas.height / (window.devicePixelRatio || 1);
+    const visibleWidth = canvas.width / this.devicePixelRatio;
+    const visibleHeight = canvas.height / this.devicePixelRatio;
 
     if (
       this.x < -this.size ||

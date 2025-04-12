@@ -9,13 +9,15 @@ export class Rocket {
   trail: { x: number; y: number; alpha: number }[];
   maxTrailLength: number;
   timestamp: number;
+  devicePixelRatio: number;
 
   constructor(
     x: number,
     y: number,
     targetX: number,
     targetY: number,
-    speed = 2
+    speed = 2,
+    devicePixelRatio = 1
   ) {
     this.x = x;
     this.y = y;
@@ -25,6 +27,7 @@ export class Rocket {
     this.trail = [];
     this.maxTrailLength = 8;
     this.timestamp = Date.now();
+    this.devicePixelRatio = devicePixelRatio;
 
     // Calculate direction to target
     const dx = targetX - x;
@@ -63,8 +66,8 @@ export class Rocket {
     this.trail = this.trail.filter((point) => point.alpha > 0.05);
 
     // Check if out of bounds - use the CSS dimensions (visible area) instead of canvas dimensions
-    const visibleWidth = canvas.width / (window.devicePixelRatio || 1);
-    const visibleHeight = canvas.height / (window.devicePixelRatio || 1);
+    const visibleWidth = canvas.width / this.devicePixelRatio;
+    const visibleHeight = canvas.height / this.devicePixelRatio;
 
     if (
       this.x < -this.size ||

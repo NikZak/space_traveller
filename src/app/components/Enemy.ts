@@ -17,11 +17,13 @@ export class Enemy {
   glowIntensity: number;
   glowDirection: number;
   pulseSpeed: number;
+  devicePixelRatio: number;
 
   constructor(
     x: number,
     y: number,
-    type: "scout" | "fighter" | "destroyer" = "scout"
+    type: "scout" | "fighter" | "destroyer" = "scout",
+    devicePixelRatio = 1
   ) {
     this.x = x;
     this.y = y;
@@ -30,6 +32,7 @@ export class Enemy {
     this.pulseSpeed = 0.05 + Math.random() * 0.05;
     this.glowIntensity = 0.5;
     this.glowDirection = 1;
+    this.devicePixelRatio = devicePixelRatio;
 
     // Set properties based on enemy type
     switch (type) {
@@ -85,8 +88,8 @@ export class Enemy {
     }
 
     // Wrap around screen - use the CSS dimensions (visible area) instead of canvas dimensions
-    const visibleWidth = canvas.width / (window.devicePixelRatio || 1);
-    const visibleHeight = canvas.height / (window.devicePixelRatio || 1);
+    const visibleWidth = canvas.width / this.devicePixelRatio;
+    const visibleHeight = canvas.height / this.devicePixelRatio;
 
     if (this.x < -this.size) this.x = visibleWidth + this.size;
     if (this.x > visibleWidth + this.size) this.x = -this.size;
@@ -302,7 +305,14 @@ export class Enemy {
       const spawnX = this.x + Math.cos(this.rotation) * spawnDistance;
       const spawnY = this.y + Math.sin(this.rotation) * spawnDistance;
 
-      return new Rocket(spawnX, spawnY, targetX, targetY);
+      return new Rocket(
+        spawnX,
+        spawnY,
+        targetX,
+        targetY,
+        2,
+        this.devicePixelRatio
+      );
     }
 
     return null;

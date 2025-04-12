@@ -11,6 +11,7 @@ export class Spaceship {
   friction: number;
   image: HTMLImageElement;
   imageLoaded: boolean;
+  devicePixelRatio: number;
 
   // Laser gun properties
   ammo: number;
@@ -23,7 +24,7 @@ export class Spaceship {
   // Size properties
   size: number;
 
-  constructor(x: number, y: number) {
+  constructor(x: number, y: number, devicePixelRatio = 1) {
     this.x = x;
     this.y = y;
     this.rotation = 0;
@@ -33,6 +34,7 @@ export class Spaceship {
     this.rotationSpeed = 3;
     this.friction = 1.0;
     this.imageLoaded = false;
+    this.devicePixelRatio = devicePixelRatio;
 
     // Load spaceship image
     this.image = new Image();
@@ -63,8 +65,8 @@ export class Spaceship {
     this.y += this.velocity.y;
 
     // Wrap around screen - use the CSS dimensions (visible area) instead of canvas dimensions
-    const visibleWidth = canvas.width / (window.devicePixelRatio || 1);
-    const visibleHeight = canvas.height / (window.devicePixelRatio || 1);
+    const visibleWidth = canvas.width / this.devicePixelRatio;
+    const visibleHeight = canvas.height / this.devicePixelRatio;
 
     if (this.x < 0) this.x = visibleWidth;
     if (this.x > visibleWidth) this.x = 0;
@@ -166,7 +168,13 @@ export class Spaceship {
       const laserX = this.x + Math.cos(this.rotation) * gunLength;
       const laserY = this.y + Math.sin(this.rotation) * gunLength;
 
-      return new Laser(laserX, laserY, this.rotation, this.laserSpeed);
+      return new Laser(
+        laserX,
+        laserY,
+        this.rotation,
+        this.laserSpeed,
+        this.devicePixelRatio
+      );
     }
 
     return null;
