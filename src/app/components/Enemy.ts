@@ -1,4 +1,5 @@
 import { Rocket } from "./Rocket";
+import { settings } from "./settings";
 
 export class Enemy {
   x: number;
@@ -37,7 +38,7 @@ export class Enemy {
     // Set properties based on enemy type
     switch (type) {
       case "scout":
-        this.size = 12;
+        this.size = settings.game.enemy_sizes.scout;
         this.health = 30;
         this.maxHealth = 30;
         this.shootCooldown = 240;
@@ -45,7 +46,7 @@ export class Enemy {
         this.eyeColor = "#FF0000"; // Bright red
         break;
       case "fighter":
-        this.size = 18;
+        this.size = settings.game.enemy_sizes.fighter;
         this.health = 60;
         this.maxHealth = 60;
         this.shootCooldown = 180;
@@ -53,7 +54,7 @@ export class Enemy {
         this.eyeColor = "#FF00FF"; // Magenta
         break;
       case "destroyer":
-        this.size = 25;
+        this.size = settings.game.enemy_sizes.destroyer;
         this.health = 100;
         this.maxHealth = 100;
         this.shootCooldown = 120;

@@ -2,6 +2,14 @@
 export const settings = {
   game: {
     initial_score: 0,
+    initial_lives: 3,
+    lives_size: 7,
+    ship_size: 15,
+    enemy_sizes: {
+      scout: 12,
+      fighter: 18,
+      destroyer: 25,
+    },
     enemy_spawn_interval: 300,
     min_enemy_spawn_interval: 120,
     enemy_spawn_timer: 0,

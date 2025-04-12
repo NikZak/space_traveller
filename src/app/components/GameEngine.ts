@@ -15,6 +15,7 @@ export interface GameState {
   frameCount: number;
   gameOver: boolean;
   score: number;
+  lives: number;
   enemySpawnTimer: number;
   enemySpawnInterval: number;
 }
@@ -58,6 +59,7 @@ export class GameEngine {
       frameCount: 0,
       gameOver: false,
       score: settings.game.initial_score,
+      lives: settings.game.initial_lives,
       enemySpawnTimer: settings.game.enemy_spawn_timer,
       enemySpawnInterval: settings.game.enemy_spawn_interval,
     };
@@ -201,7 +203,7 @@ export class GameEngine {
     // Check spaceship collision with planets
     for (const planet of planets) {
       if (planet.checkCollision(spaceship.x, spaceship.y, spaceship.size)) {
-        this.gameState.gameOver = true;
+        this.handleSpaceshipDeath();
         return;
       }
     }
@@ -212,7 +214,7 @@ export class GameEngine {
         enemy.active &&
         enemy.checkCollision(spaceship.x, spaceship.y, spaceship.size)
       ) {
-        this.gameState.gameOver = true;
+        this.handleSpaceshipDeath();
         return;
       }
     }
@@ -223,7 +225,7 @@ export class GameEngine {
         rocket.active &&
         rocket.checkCollision(spaceship.x, spaceship.y, spaceship.size)
       ) {
-        this.gameState.gameOver = true;
+        this.handleSpaceshipDeath();
         return;
       }
     }
@@ -309,6 +311,20 @@ export class GameEngine {
       if (laserHit) {
         lasers.splice(i, 1);
       }
+    }
+  }
+
+  private handleSpaceshipDeath(): void {
+    this.gameState.lives--;
+    if (this.gameState.lives <= 0) {
+      this.gameState.gameOver = true;
+    } else {
+      // Reset spaceship position
+      this.gameState.spaceship = new Spaceship(
+        this.canvas.width / this.devicePixelRatio / 2,
+        this.canvas.height / this.devicePixelRatio / 2,
+        this.devicePixelRatio
+      );
     }
   }
 
@@ -414,6 +430,43 @@ export class GameEngine {
       laser.draw(this.ctx);
     }
 
+    // Draw lives
+    this.ctx.save();
+    this.ctx.translate(20, 20);
+    for (let i = 0; i < this.gameState.lives; i++) {
+      this.ctx.save();
+      this.ctx.translate(i * 30, 0);
+      const scale = settings.game.lives_size / settings.game.ship_size;
+      this.ctx.scale(scale, scale); // Scale based on lives_size setting
+
+      if (this.gameState.spaceship.imageLoaded) {
+        // Draw spaceship image
+        const imageSize = this.gameState.spaceship.size * 2;
+        this.ctx.drawImage(
+          this.gameState.spaceship.image,
+          -imageSize / 2,
+          -imageSize / 2,
+          imageSize,
+          imageSize
+        );
+      } else {
+        // Fallback to triangle if image is not loaded
+        this.ctx.beginPath();
+        this.ctx.moveTo(15, 0);
+        this.ctx.lineTo(-7.5, 7.5);
+        this.ctx.lineTo(-7.5, -7.5);
+        this.ctx.closePath();
+        this.ctx.fillStyle = "#fff";
+        this.ctx.fill();
+        this.ctx.strokeStyle = "#666";
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+      }
+
+      this.ctx.restore();
+    }
+    this.ctx.restore();
+
     // Draw score
     this.ctx.font = "24px Arial";
     this.ctx.fillStyle = "white";
@@ -506,6 +559,7 @@ export class GameEngine {
       frameCount: 0,
       gameOver: false,
       score: settings.game.initial_score,
+      lives: settings.game.initial_lives,
       enemySpawnTimer: settings.game.enemy_spawn_timer,
       enemySpawnInterval: settings.game.enemy_spawn_interval,
     };

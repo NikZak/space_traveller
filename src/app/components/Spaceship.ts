@@ -1,4 +1,5 @@
 import { Laser } from "./Laser";
+import { settings } from "./settings";
 
 export class Spaceship {
   x: number;
@@ -52,7 +53,7 @@ export class Spaceship {
     this.laserSpeed = 10;
 
     // Size properties
-    this.size = 15; // Base size for the spaceship
+    this.size = settings.game.ship_size;
   }
 
   update(canvas: HTMLCanvasElement): void {
