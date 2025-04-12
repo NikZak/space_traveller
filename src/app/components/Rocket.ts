@@ -8,6 +8,7 @@ export class Rocket {
   active: boolean;
   trail: { x: number; y: number; alpha: number }[];
   maxTrailLength: number;
+  timestamp: number;
 
   constructor(
     x: number,
@@ -23,6 +24,7 @@ export class Rocket {
     this.active = true;
     this.trail = [];
     this.maxTrailLength = 8;
+    this.timestamp = Date.now();
 
     // Calculate direction to target
     const dx = targetX - x;

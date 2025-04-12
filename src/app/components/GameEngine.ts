@@ -4,6 +4,46 @@ import { Planet } from "./Planet";
 import { Enemy } from "./Enemy";
 import type { Rocket } from "./Rocket";
 
+// Game settings
+const settings = {
+  game: {
+    initial_score: 0,
+    enemy_spawn_interval: 300,
+    min_enemy_spawn_interval: 120,
+    enemy_spawn_timer: 0,
+  },
+  display: {
+    device_pixel_ratio: 1.0,
+  },
+  planets: {
+    count: 5,
+    min_radius: 15,
+    max_radius: 40,
+    colors: ["#4B0082", "#800080", "#9932CC", "#8A2BE2", "#9370DB"],
+  },
+  enemies: {
+    scout_probability: 0.7,
+    fighter_probability: 0.25,
+    destroyer_probability: 0.05,
+    scout_score: 100,
+    fighter_score: 250,
+    destroyer_score: 500,
+    spawn_offset: 50,
+  },
+  rockets: {
+    lifetime_ms: 5000,
+    rocket_score: 10,
+  },
+  controls: {
+    up_key: "ArrowUp",
+    down_key: "ArrowDown",
+    left_key: "ArrowLeft",
+    right_key: "ArrowRight",
+    shoot_key: " ",
+    restart_key: "r",
+  },
+};
+
 export interface GameState {
   spaceship: Spaceship;
   keys: { [key: string]: boolean };
@@ -34,17 +74,17 @@ export class GameEngine {
     this.ctx = context;
 
     // Get device pixel ratio for high DPI displays
-    this.devicePixelRatio = window.devicePixelRatio || 1;
+    this.devicePixelRatio = settings.display.device_pixel_ratio;
 
     // Initialize game state
     this.gameState = {
       spaceship: new Spaceship(canvas.width / 2, canvas.height / 2),
       keys: {
-        ArrowUp: false,
-        ArrowDown: false,
-        ArrowLeft: false,
-        ArrowRight: false,
-        " ": false, // Space key for shooting
+        [settings.controls.up_key]: false,
+        [settings.controls.down_key]: false,
+        [settings.controls.left_key]: false,
+        [settings.controls.right_key]: false,
+        [settings.controls.shoot_key]: false,
       },
       lasers: [],
       planets: this.generatePlanets(),
@@ -52,9 +92,9 @@ export class GameEngine {
       rockets: [],
       frameCount: 0,
       gameOver: false,
-      score: 0,
-      enemySpawnTimer: 0,
-      enemySpawnInterval: 300, // Increased from 180 (5 seconds at 60fps)
+      score: settings.game.initial_score,
+      enemySpawnTimer: settings.game.enemy_spawn_timer,
+      enemySpawnInterval: settings.game.enemy_spawn_interval,
     };
 
     // Set up resize handler
@@ -73,10 +113,10 @@ export class GameEngine {
 
   private generatePlanets(): Planet[] {
     const planets: Planet[] = [];
-    const numPlanets = 5;
-    const minRadius = 15;
-    const maxRadius = 40;
-    const colors = ["#4B0082", "#800080", "#9932CC", "#8A2BE2", "#9370DB"];
+    const numPlanets = settings.planets.count;
+    const minRadius = settings.planets.min_radius;
+    const maxRadius = settings.planets.max_radius;
+    const colors = settings.planets.colors;
 
     // Get visible dimensions
     const visibleWidth = this.canvas.width / this.devicePixelRatio;
@@ -106,18 +146,18 @@ export class GameEngine {
     switch (side) {
       case 0: // Top
         x = Math.random() * visibleWidth;
-        y = -50;
+        y = -settings.enemies.spawn_offset;
         break;
       case 1: // Right
-        x = visibleWidth + 50;
+        x = visibleWidth + settings.enemies.spawn_offset;
         y = Math.random() * visibleHeight;
         break;
       case 2: // Bottom
         x = Math.random() * visibleWidth;
-        y = visibleHeight + 50;
+        y = visibleHeight + settings.enemies.spawn_offset;
         break;
       case 3: // Left
-        x = -50;
+        x = -settings.enemies.spawn_offset;
         y = Math.random() * visibleHeight;
         break;
     }
@@ -126,12 +166,15 @@ export class GameEngine {
     const typeRoll = Math.random();
     let enemyType: "scout" | "fighter" | "destroyer";
 
-    if (typeRoll < 0.7) {
-      enemyType = "scout"; // 70% chance (increased from 60%)
-    } else if (typeRoll < 0.95) {
-      enemyType = "fighter"; // 25% chance (decreased from 30%)
+    if (typeRoll < settings.enemies.scout_probability) {
+      enemyType = "scout";
+    } else if (
+      typeRoll <
+      settings.enemies.scout_probability + settings.enemies.fighter_probability
+    ) {
+      enemyType = "fighter";
     } else {
-      enemyType = "destroyer"; // 5% chance (decreased from 10%)
+      enemyType = "destroyer";
     }
 
     // Create and add the enemy
@@ -170,8 +213,8 @@ export class GameEngine {
       this.gameState.keys[e.key] = true;
     }
 
-    // Add restart functionality with 'R' key
-    if (e.key === "r" || e.key === "R") {
+    // Add restart functionality with configured key
+    if (e.key.toLowerCase() === settings.controls.restart_key) {
       this.restartGame();
     }
   }
@@ -215,6 +258,34 @@ export class GameEngine {
       }
     }
 
+    // Check enemy collisions with planets
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const enemy = enemies[i];
+      if (!enemy.active) continue;
+
+      for (const planet of planets) {
+        if (planet.checkCollision(enemy.x, enemy.y, enemy.size)) {
+          // Enemy dies when hitting a planet
+          enemy.active = false;
+          break;
+        }
+      }
+    }
+
+    // Check rocket collisions with planets
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const rocket = rockets[i];
+      if (!rocket.active) continue;
+
+      for (const planet of planets) {
+        if (planet.checkCollision(rocket.x, rocket.y, rocket.size)) {
+          // Rocket disappears when hitting a planet
+          rocket.active = false;
+          break;
+        }
+      }
+    }
+
     // Check laser collisions with enemies
     for (let i = lasers.length - 1; i >= 0; i--) {
       const laser = lasers[i];
@@ -233,13 +304,13 @@ export class GameEngine {
             // Add score based on enemy type
             switch (enemy.type) {
               case "scout":
-                this.gameState.score += 100;
+                this.gameState.score += settings.enemies.scout_score;
                 break;
               case "fighter":
-                this.gameState.score += 250;
+                this.gameState.score += settings.enemies.fighter_score;
                 break;
               case "destroyer":
-                this.gameState.score += 500;
+                this.gameState.score += settings.enemies.destroyer_score;
                 break;
             }
           }
@@ -257,7 +328,7 @@ export class GameEngine {
             rocket.checkCollision(laser.x, laser.y, laser.size)
           ) {
             rocket.active = false;
-            this.gameState.score += 10; // Points for destroying a rocket
+            this.gameState.score += settings.rockets.rocket_score;
             laserHit = true;
             break;
           }
@@ -278,13 +349,13 @@ export class GameEngine {
     this.gameState.frameCount++;
 
     // Handle input
-    if (keys.ArrowUp) spaceship.accelerate();
-    if (keys.ArrowDown) spaceship.decelerate();
-    if (keys.ArrowLeft) spaceship.rotateLeft();
-    if (keys.ArrowRight) spaceship.rotateRight();
+    if (keys[settings.controls.up_key]) spaceship.accelerate();
+    if (keys[settings.controls.down_key]) spaceship.decelerate();
+    if (keys[settings.controls.left_key]) spaceship.rotateLeft();
+    if (keys[settings.controls.right_key]) spaceship.rotateRight();
 
     // Handle shooting
-    if (keys[" "]) {
+    if (keys[settings.controls.shoot_key]) {
       const newLaser = spaceship.shoot(frameCount);
       if (newLaser) {
         this.gameState.lasers.push(newLaser);
@@ -314,6 +385,10 @@ export class GameEngine {
 
     // Update rockets
     this.gameState.rockets = this.gameState.rockets.filter((rocket) => {
+      // Check if rocket has exceeded 5 second lifetime
+      if (Date.now() - rocket.timestamp > 5000) {
+        return false;
+      }
       return rocket.update(this.canvas);
     });
 
@@ -324,8 +399,10 @@ export class GameEngine {
       this.gameState.enemySpawnTimer = 0;
 
       // Gradually decrease spawn interval (make game harder)
-      if (this.gameState.enemySpawnInterval > 120) {
-        // Increased from 60
+      if (
+        this.gameState.enemySpawnInterval >
+        settings.game.min_enemy_spawn_interval
+      ) {
         this.gameState.enemySpawnInterval -= 1;
       }
     }
@@ -432,11 +509,11 @@ export class GameEngine {
     this.gameState = {
       spaceship: new Spaceship(window.innerWidth / 2, window.innerHeight / 2),
       keys: {
-        ArrowUp: false,
-        ArrowDown: false,
-        ArrowLeft: false,
-        ArrowRight: false,
-        " ": false, // Space key for shooting
+        [settings.controls.up_key]: false,
+        [settings.controls.down_key]: false,
+        [settings.controls.left_key]: false,
+        [settings.controls.right_key]: false,
+        [settings.controls.shoot_key]: false,
       },
       lasers: [],
       planets: this.generatePlanets(),
@@ -444,9 +521,9 @@ export class GameEngine {
       rockets: [],
       frameCount: 0,
       gameOver: false,
-      score: 0,
-      enemySpawnTimer: 0,
-      enemySpawnInterval: 300, // Increased from 180
+      score: settings.game.initial_score,
+      enemySpawnTimer: settings.game.enemy_spawn_timer,
+      enemySpawnInterval: settings.game.enemy_spawn_interval,
     };
   }
 }
