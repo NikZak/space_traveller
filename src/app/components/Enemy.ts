@@ -23,6 +23,8 @@ export class Enemy {
   rotationSpeed: number;
   currentSpeed: number; // For destroyer acceleration
   targetSpeed: number; // For destroyer acceleration
+  ammo: number;
+  maxAmmo: number;
 
   constructor(
     x: number,
@@ -51,6 +53,8 @@ export class Enemy {
     this.velocity = { x: 0, y: 0 };
     this.rotation = 0;
     this.lastShotTime = 0;
+    this.ammo = 0;
+    this.maxAmmo = 0;
 
     // Set properties based on enemy type
     switch (type) {
@@ -61,6 +65,8 @@ export class Enemy {
         this.shootCooldown = settings.enemies.scout.shoot_cooldown;
         this.color = "#8B0000"; // Dark red
         this.eyeColor = "#FF0000"; // Bright red
+        this.maxAmmo = settings.enemies.scout.max_ammo;
+        this.ammo = this.maxAmmo;
         break;
       case "fighter":
         this.size = settings.game.enemy_sizes.fighter;
@@ -69,6 +75,8 @@ export class Enemy {
         this.shootCooldown = settings.enemies.fighter.shoot_cooldown;
         this.color = "#800080"; // Purple
         this.eyeColor = "#FF00FF"; // Magenta
+        this.maxAmmo = settings.enemies.fighter.max_ammo;
+        this.ammo = this.maxAmmo;
         break;
       case "destroyer":
         this.size = settings.game.enemy_sizes.destroyer;
@@ -77,6 +85,8 @@ export class Enemy {
         this.shootCooldown = settings.enemies.destroyer.shoot_cooldown;
         this.color = "#000080"; // Navy blue
         this.eyeColor = "#00FFFF"; // Cyan
+        this.maxAmmo = settings.enemies.destroyer.max_ammo;
+        this.ammo = this.maxAmmo;
         break;
     }
 
@@ -424,11 +434,30 @@ export class Enemy {
       barWidth * healthPercentage,
       barHeight
     );
+
+    // Ammo bar
+    const ammoPercentage = this.ammo / this.maxAmmo;
+    const ammoBarHeight = this.size * 0.1;
+    const ammoBarY = -this.size * 1.5 - ammoBarHeight - 2;
+
+    // Ammo bar background
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-this.size, ammoBarY, barWidth, ammoBarHeight);
+
+    // Ammo bar
+    ctx.fillStyle = "#00f";
+    ctx.fillRect(
+      -this.size,
+      ammoBarY,
+      barWidth * ammoPercentage,
+      ammoBarHeight
+    );
   }
 
   shoot(frameCount: number, targetX: number, targetY: number): Rocket | null {
-    if (frameCount - this.lastShotTime >= this.shootCooldown) {
+    if (frameCount - this.lastShotTime >= this.shootCooldown && this.ammo > 0) {
       this.lastShotTime = frameCount;
+      this.ammo--;
 
       // Calculate rocket spawn position
       const spawnDistance = this.size * 1.2;
