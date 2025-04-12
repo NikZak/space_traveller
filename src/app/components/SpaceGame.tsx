@@ -20,7 +20,9 @@ export default function SpaceGame() {
     // Cleanup
     return () => {
       if (gameEngineRef.current) {
+        gameEngineRef.current.stop();
         gameEngineRef.current.cleanup();
+        gameEngineRef.current = null;
       }
     };
   }, []);

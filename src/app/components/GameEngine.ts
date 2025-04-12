@@ -188,8 +188,6 @@ export class GameEngine {
     // Convert key to the format we're using in settings
     const key = e.code === "Space" ? " " : e.key;
 
-    console.log("Key down:", key, "Code:", e.code);
-
     // If game is over, only allow restart
     if (this.gameState.gameOver) {
       if (e.key.toLowerCase() === settings.controls.restart_key) {
@@ -200,7 +198,6 @@ export class GameEngine {
 
     if (Object.prototype.hasOwnProperty.call(this.gameState.keys, key)) {
       this.gameState.keys[key] = true;
-      console.log("Game state keys:", this.gameState.keys);
     }
 
     // Add restart functionality with configured key
@@ -213,11 +210,8 @@ export class GameEngine {
     // Convert key to the format we're using in settings
     const key = e.code === "Space" ? " " : e.key;
 
-    console.log("Key up:", key, "Code:", e.code);
-
     if (Object.prototype.hasOwnProperty.call(this.gameState.keys, key)) {
       this.gameState.keys[key] = false;
-      console.log("Game state keys:", this.gameState.keys);
     }
   }
 
@@ -385,13 +379,9 @@ export class GameEngine {
       spaceship.rotateRight();
     }
     if (this.gameState.keys[settings.controls.shoot_key]) {
-      console.log("Attempting to shoot, frame:", this.gameState.frameCount);
       const laser = spaceship.shoot(this.gameState.frameCount);
       if (laser) {
-        console.log("Laser created");
         lasers.push(laser);
-      } else {
-        console.log("No laser created - cooldown or no ammo");
       }
     }
 
@@ -423,7 +413,6 @@ export class GameEngine {
         spaceship.y
       );
       if (rocket) {
-        console.log("Enemy created rocket");
         rockets.push(rocket);
       }
 
@@ -437,9 +426,7 @@ export class GameEngine {
     // Handle round management
     const newEnemy = roundManager.update();
     if (newEnemy) {
-      console.log("Adding new enemy to game state:", newEnemy);
       enemies.push(newEnemy);
-      console.log("Total enemies in game state:", enemies.length);
     }
 
     // Only start next round if:
@@ -451,7 +438,6 @@ export class GameEngine {
       enemies.length === 0 &&
       !roundManager.isInTransition()
     ) {
-      console.log("Round complete, starting next round");
       // Regenerate planets for the new round
       this.gameState.planets = this.generatePlanets();
       roundManager.startRound();
@@ -491,10 +477,8 @@ export class GameEngine {
     }
 
     // Draw enemies
-    console.log(`Rendering ${enemies.length} enemies`);
     for (const enemy of enemies) {
       if (enemy.active) {
-        console.log(`Drawing enemy: ${enemy.type} at (${enemy.x}, ${enemy.y})`);
         enemy.draw(this.ctx);
       }
     }
@@ -565,7 +549,6 @@ export class GameEngine {
   private gameLoop(): void {
     // Increment frame count
     this.gameState.frameCount++;
-    console.log("Game loop running, frame:", this.gameState.frameCount);
 
     this.update();
     this.render();
@@ -573,11 +556,9 @@ export class GameEngine {
   }
 
   public start(): void {
-    console.log("Starting game...");
     if (!this.animationFrameId) {
       // Start the first round
       this.gameState.roundManager.startRound();
-      console.log("Game loop starting...");
       this.gameLoop();
     }
   }
@@ -594,6 +575,21 @@ export class GameEngine {
     window.removeEventListener("resize", this.handleResize);
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("keyup", this.handleKeyUp);
+
+    // Clear game state
+    this.gameState = {
+      spaceship: new Spaceship(0, 0, this.devicePixelRatio),
+      keys: {},
+      lasers: [],
+      planets: [],
+      enemies: [],
+      rockets: [],
+      frameCount: 0,
+      gameOver: true,
+      score: 0,
+      lives: 0,
+      roundManager: new RoundManager(this.canvas),
+    };
   }
 
   public restartGame(): void {

@@ -13,7 +13,7 @@ export class Laser {
     y: number,
     rotation: number,
     speed: number,
-    devicePixelRatio: number = 1
+    devicePixelRatio = 1
   ) {
     this.x = x;
     this.y = y;

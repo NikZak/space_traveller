@@ -26,9 +26,6 @@ export class RoundManager {
     this.roundStartTime = Date.now();
     this.isRoundTransition = true;
     this.spawnedEnemies = { scout: 0, fighter: 0, destroyer: 0 };
-    console.log(
-      `Starting round ${this.currentRound} with ${this.enemiesRemaining} enemies`
-    );
   }
 
   update(): Enemy | null {
@@ -37,11 +34,9 @@ export class RoundManager {
     // Handle round transition
     if (this.isRoundTransition) {
       const timeInTransition = currentTime - this.roundStartTime;
-      console.log(`Time in transition: ${timeInTransition}ms`);
 
       if (timeInTransition >= settings.rounds.round_duration) {
         this.isRoundTransition = false;
-        console.log("Round transition complete, starting enemy spawns");
         // Set lastSpawnTime to now to start spawning immediately
         this.lastSpawnTime = currentTime;
       }
@@ -50,16 +45,12 @@ export class RoundManager {
 
     // Spawn enemies
     const timeSinceLastSpawn = currentTime - this.lastSpawnTime;
-    console.log(`Time since last spawn: ${timeSinceLastSpawn}ms`);
 
     if (timeSinceLastSpawn >= settings.rounds.spawn_delay) {
       this.lastSpawnTime = currentTime;
       const enemy = this.spawnNextEnemy();
       if (enemy) {
-        console.log(`Spawning ${enemy.type} enemy at (${enemy.x}, ${enemy.y})`);
         return enemy;
-      } else {
-        console.log("No more enemies to spawn this round");
       }
     }
 
@@ -71,13 +62,6 @@ export class RoundManager {
     const scoutCount = this.getEnemiesForRound("scout");
     const fighterCount = this.getEnemiesForRound("fighter");
     const destroyerCount = this.getEnemiesForRound("destroyer");
-
-    console.log(
-      `Enemies to spawn: scout=${scoutCount}, fighter=${fighterCount}, destroyer=${destroyerCount}`
-    );
-    console.log(
-      `Enemies spawned: scout=${this.spawnedEnemies.scout}, fighter=${this.spawnedEnemies.fighter}, destroyer=${this.spawnedEnemies.destroyer}`
-    );
 
     if (
       this.spawnedEnemies.scout < scoutCount ||
@@ -95,7 +79,6 @@ export class RoundManager {
       // Spawn the enemy
       this.spawnedEnemies[enemyType]++;
       const enemy = this.createEnemy(enemyType);
-      console.log(`Created ${enemyType} enemy:`, enemy);
       return enemy;
     }
 
@@ -133,29 +116,15 @@ export class RoundManager {
         break;
     }
 
-    console.log(`Creating ${type} enemy at (${x}, ${y})`);
-    const enemy = new Enemy(x, y, type, settings.display.device_pixel_ratio);
-    console.log("Enemy created with properties:", {
-      x: enemy.x,
-      y: enemy.y,
-      type: enemy.type,
-      active: enemy.active,
-      size: enemy.size,
-    });
-    return enemy;
+    return new Enemy(x, y, type, settings.display.device_pixel_ratio);
   }
 
   enemyDestroyed(): void {
     this.enemiesRemaining--;
-    console.log(`Enemy destroyed, ${this.enemiesRemaining} remaining`);
   }
 
   isRoundComplete(): boolean {
-    const complete = !this.isRoundTransition && this.enemiesRemaining === 0;
-    console.log(
-      `Round complete check: transition=${this.isRoundTransition}, remaining=${this.enemiesRemaining}, complete=${complete}`
-    );
-    return complete;
+    return !this.isRoundTransition && this.enemiesRemaining === 0;
   }
 
   isGameComplete(): boolean {
@@ -173,12 +142,11 @@ export class RoundManager {
   }
 
   private getTotalEnemiesForRound(): number {
-    const total =
+    return (
       this.getEnemiesForRound("scout") +
       this.getEnemiesForRound("fighter") +
-      this.getEnemiesForRound("destroyer");
-    console.log(`Total enemies for round ${this.currentRound}: ${total}`);
-    return total;
+      this.getEnemiesForRound("destroyer")
+    );
   }
 
   private getEnemiesForRound(type: "scout" | "fighter" | "destroyer"): number {
@@ -186,8 +154,6 @@ export class RoundManager {
       this.currentRound - 1,
       settings.rounds.enemies_per_round[type].length - 1
     );
-    const count = settings.rounds.enemies_per_round[type][roundIndex];
-    console.log(`Enemies for ${type} in round ${this.currentRound}: ${count}`);
-    return count;
+    return settings.rounds.enemies_per_round[type][roundIndex];
   }
 }
