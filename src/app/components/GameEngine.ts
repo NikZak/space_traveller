@@ -4,6 +4,7 @@ import { Planet } from "./Planet";
 import { Enemy } from "./Enemy";
 import type { Rocket } from "./Rocket";
 import { settings } from "./settings";
+import { RoundManager } from "./RoundManager";
 
 export interface GameState {
   spaceship: Spaceship;
@@ -16,8 +17,7 @@ export interface GameState {
   gameOver: boolean;
   score: number;
   lives: number;
-  enemySpawnTimer: number;
-  enemySpawnInterval: number;
+  roundManager: RoundManager;
 }
 
 export class GameEngine {
@@ -60,8 +60,7 @@ export class GameEngine {
       gameOver: false,
       score: settings.game.initial_score,
       lives: settings.game.initial_lives,
-      enemySpawnTimer: settings.game.enemy_spawn_timer,
-      enemySpawnInterval: settings.game.enemy_spawn_interval,
+      roundManager: new RoundManager(canvas),
     };
 
     // Set up resize handler
@@ -181,8 +180,27 @@ export class GameEngine {
   }
 
   private handleKeyDown(e: KeyboardEvent): void {
-    if (Object.prototype.hasOwnProperty.call(this.gameState.keys, e.key)) {
-      this.gameState.keys[e.key] = true;
+    // Prevent default space bar scrolling
+    if (e.code === "Space") {
+      e.preventDefault();
+    }
+
+    // Convert key to the format we're using in settings
+    const key = e.code === "Space" ? " " : e.key;
+
+    console.log("Key down:", key, "Code:", e.code);
+
+    // If game is over, only allow restart
+    if (this.gameState.gameOver) {
+      if (e.key.toLowerCase() === settings.controls.restart_key) {
+        this.restartGame();
+      }
+      return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(this.gameState.keys, key)) {
+      this.gameState.keys[key] = true;
+      console.log("Game state keys:", this.gameState.keys);
     }
 
     // Add restart functionality with configured key
@@ -192,13 +210,20 @@ export class GameEngine {
   }
 
   private handleKeyUp(e: KeyboardEvent): void {
-    if (Object.prototype.hasOwnProperty.call(this.gameState.keys, e.key)) {
-      this.gameState.keys[e.key] = false;
+    // Convert key to the format we're using in settings
+    const key = e.code === "Space" ? " " : e.key;
+
+    console.log("Key up:", key, "Code:", e.code);
+
+    if (Object.prototype.hasOwnProperty.call(this.gameState.keys, key)) {
+      this.gameState.keys[key] = false;
+      console.log("Game state keys:", this.gameState.keys);
     }
   }
 
   private checkCollisions(): void {
-    const { spaceship, planets, enemies, rockets, lasers } = this.gameState;
+    const { spaceship, planets, enemies, rockets, lasers, roundManager } =
+      this.gameState;
 
     // Check spaceship collision with planets
     for (const planet of planets) {
@@ -239,6 +264,7 @@ export class GameEngine {
         if (planet.checkCollision(enemy.x, enemy.y, enemy.size)) {
           // Enemy dies when hitting a planet and awards points
           enemy.active = false;
+          roundManager.enemyDestroyed();
           // Add score based on enemy type
           switch (enemy.type) {
             case "scout":
@@ -251,22 +277,6 @@ export class GameEngine {
               this.gameState.score += settings.enemies.destroyer_score;
               break;
           }
-          break;
-        }
-      }
-    }
-
-    // Check rocket collisions with planets
-    for (let i = rockets.length - 1; i >= 0; i--) {
-      const rocket = rockets[i];
-      if (!rocket.active) continue;
-
-      for (const planet of planets) {
-        if (planet.checkCollision(rocket.x, rocket.y, rocket.size)) {
-          // Rocket disappears when hitting a planet and awards points
-          rocket.active = false;
-          this.gameState.score += settings.rockets.rocket_score;
-          break;
         }
       }
     }
@@ -276,16 +286,15 @@ export class GameEngine {
       const laser = lasers[i];
       let laserHit = false;
 
-      // Check collision with enemies
       for (let j = enemies.length - 1; j >= 0; j--) {
         const enemy = enemies[j];
-        if (
-          enemy.active &&
-          enemy.checkCollision(laser.x, laser.y, laser.size)
-        ) {
+        if (!enemy.active) continue;
+
+        if (enemy.checkCollision(laser.x, laser.y, laser.size)) {
           // Enemy takes damage
-          const destroyed = enemy.takeDamage(10);
-          if (destroyed) {
+          if (enemy.takeDamage(10)) {
+            // Enemy destroyed
+            roundManager.enemyDestroyed();
             // Add score based on enemy type
             switch (enemy.type) {
               case "scout":
@@ -304,23 +313,28 @@ export class GameEngine {
         }
       }
 
-      // Check collision with rockets
-      if (!laserHit) {
-        for (let j = rockets.length - 1; j >= 0; j--) {
-          const rocket = rockets[j];
-          if (
-            rocket.active &&
-            rocket.checkCollision(laser.x, laser.y, laser.size)
-          ) {
-            rocket.active = false;
-            this.gameState.score += settings.rockets.rocket_score;
-            laserHit = true;
-            break;
-          }
+      if (laserHit) {
+        lasers.splice(i, 1);
+      }
+    }
+
+    // Check laser collisions with rockets
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      const laser = lasers[i];
+      let laserHit = false;
+
+      for (let j = rockets.length - 1; j >= 0; j--) {
+        const rocket = rockets[j];
+        if (!rocket.active) continue;
+
+        if (rocket.checkCollision(laser.x, laser.y, laser.size)) {
+          rocket.active = false;
+          this.gameState.score += settings.rockets.rocket_score;
+          laserHit = true;
+          break;
         }
       }
 
-      // Remove laser if it hit something
       if (laserHit) {
         lasers.splice(i, 1);
       }
@@ -328,210 +342,242 @@ export class GameEngine {
   }
 
   private handleSpaceshipDeath(): void {
-    this.gameState.lives--;
-    if (this.gameState.lives <= 0) {
-      this.gameState.gameOver = true;
-    } else {
-      // Reset spaceship position
-      this.gameState.spaceship = new Spaceship(
-        this.canvas.width / this.devicePixelRatio / 2,
-        this.canvas.height / this.devicePixelRatio / 2,
-        this.devicePixelRatio
-      );
+    if (this.gameState.lives > 0) {
+      this.gameState.lives--;
+      if (this.gameState.lives <= 0) {
+        this.gameState.gameOver = true;
+        this.stop(); // Stop the game loop when game is over
+      } else {
+        // Reset spaceship position
+        this.gameState.spaceship = new Spaceship(
+          this.canvas.width / this.devicePixelRatio / 2,
+          this.canvas.height / this.devicePixelRatio / 2,
+          this.devicePixelRatio
+        );
+      }
     }
   }
 
   private update(): void {
-    if (this.gameState.gameOver) return;
+    // Don't update anything if game is over
+    if (this.gameState.gameOver) {
+      return;
+    }
 
-    const { spaceship, keys, frameCount, enemies, rockets } = this.gameState;
-    this.gameState.frameCount++;
+    const { spaceship, lasers, rockets, enemies, roundManager } =
+      this.gameState;
+    const canvas = this.canvas;
+
+    // Update spaceship
+    spaceship.update(canvas);
 
     // Handle input
-    if (keys[settings.controls.up_key]) spaceship.accelerate();
-    if (keys[settings.controls.down_key]) spaceship.decelerate();
-    if (keys[settings.controls.left_key]) spaceship.rotateLeft();
-    if (keys[settings.controls.right_key]) spaceship.rotateRight();
-
-    // Handle shooting
-    if (keys[settings.controls.shoot_key]) {
-      const newLaser = spaceship.shoot(frameCount);
-      if (newLaser) {
-        this.gameState.lasers.push(newLaser);
+    if (this.gameState.keys.ArrowUp) {
+      spaceship.accelerate();
+    }
+    if (this.gameState.keys.ArrowDown) {
+      spaceship.decelerate();
+    }
+    if (this.gameState.keys.ArrowLeft) {
+      spaceship.rotateLeft();
+    }
+    if (this.gameState.keys.ArrowRight) {
+      spaceship.rotateRight();
+    }
+    if (this.gameState.keys[settings.controls.shoot_key]) {
+      console.log("Attempting to shoot, frame:", this.gameState.frameCount);
+      const laser = spaceship.shoot(this.gameState.frameCount);
+      if (laser) {
+        console.log("Laser created");
+        lasers.push(laser);
+      } else {
+        console.log("No laser created - cooldown or no ammo");
       }
     }
 
-    // Update spaceship
-    spaceship.update(this.canvas);
-
     // Update lasers
-    this.gameState.lasers = this.gameState.lasers.filter((laser) => {
-      return laser.update(this.canvas);
-    });
-
-    // Update enemies
-    for (const enemy of enemies) {
-      if (enemy.active) {
-        enemy.update(this.canvas, spaceship.x, spaceship.y);
-
-        // Enemy shoots at player
-        const rocket = enemy.shoot(frameCount, spaceship.x, spaceship.y);
-        if (rocket) {
-          this.gameState.rockets.push(rocket);
-        }
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      const laser = lasers[i];
+      if (!laser.update(canvas)) {
+        lasers.splice(i, 1);
       }
     }
 
     // Update rockets
-    this.gameState.rockets = this.gameState.rockets.filter((rocket) => {
-      // Check if rocket has exceeded 5 second lifetime
-      if (Date.now() - rocket.timestamp > 5000) {
-        return false;
-      }
-      return rocket.update(this.canvas);
-    });
-
-    // Spawn enemies
-    this.gameState.enemySpawnTimer++;
-    if (this.gameState.enemySpawnTimer >= this.gameState.enemySpawnInterval) {
-      this.spawnEnemy();
-      this.gameState.enemySpawnTimer = 0;
-
-      // Gradually decrease spawn interval (make game harder)
-      if (
-        this.gameState.enemySpawnInterval >
-        settings.game.min_enemy_spawn_interval
-      ) {
-        this.gameState.enemySpawnInterval -= 1;
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const rocket = rockets[i];
+      if (!rocket.update(canvas)) {
+        rockets.splice(i, 1);
       }
     }
 
-    // Check for collisions
+    // Update enemies and handle enemy shooting
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const enemy = enemies[i];
+      enemy.update(canvas, spaceship.x, spaceship.y);
+
+      // Handle enemy shooting
+      const rocket = enemy.shoot(
+        this.gameState.frameCount,
+        spaceship.x,
+        spaceship.y
+      );
+      if (rocket) {
+        console.log("Enemy created rocket");
+        rockets.push(rocket);
+      }
+
+      // Only remove inactive enemies, but don't call enemyDestroyed here
+      // since it's already called in collision checks
+      if (!enemy.active) {
+        enemies.splice(i, 1);
+      }
+    }
+
+    // Handle round management
+    const newEnemy = roundManager.update();
+    if (newEnemy) {
+      console.log("Adding new enemy to game state:", newEnemy);
+      enemies.push(newEnemy);
+      console.log("Total enemies in game state:", enemies.length);
+    }
+
+    // Only start next round if:
+    // 1. Current round is complete (all enemies spawned and transition done)
+    // 2. No active enemies remain
+    // 3. No inactive enemies waiting to be cleaned up
+    if (
+      roundManager.isRoundComplete() &&
+      enemies.length === 0 &&
+      !roundManager.isInTransition()
+    ) {
+      console.log("Round complete, starting next round");
+      // Regenerate planets for the new round
+      this.gameState.planets = this.generatePlanets();
+      roundManager.startRound();
+    }
+
+    // Check collisions
     this.checkCollisions();
   }
 
   private render(): void {
+    const {
+      spaceship,
+      lasers,
+      planets,
+      enemies,
+      rockets,
+      roundManager,
+      gameOver,
+    } = this.gameState;
+
     // Clear canvas
-    this.ctx.fillStyle = "#000";
-    this.ctx.fillRect(
-      0,
-      0,
-      this.canvas.width / this.devicePixelRatio,
-      this.canvas.height / this.devicePixelRatio
-    );
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Draw planets
-    for (const planet of this.gameState.planets) {
+    for (const planet of planets) {
       planet.draw(this.ctx);
     }
 
-    // Draw enemies
-    for (const enemy of this.gameState.enemies) {
-      enemy.draw(this.ctx);
-    }
-
-    // Draw rockets
-    for (const rocket of this.gameState.rockets) {
-      rocket.draw(this.ctx);
-    }
-
-    // Draw spaceship
-    this.gameState.spaceship.draw(this.ctx);
-
     // Draw lasers
-    for (const laser of this.gameState.lasers) {
+    for (const laser of lasers) {
       laser.draw(this.ctx);
     }
 
-    // Draw lives
-    this.ctx.save();
-    this.ctx.translate(20, 20);
-    for (let i = 0; i < this.gameState.lives; i++) {
-      this.ctx.save();
-      this.ctx.translate(i * 30, 0);
-      const scale = settings.game.lives_size / settings.game.ship_size;
-      this.ctx.scale(scale, scale); // Scale based on lives_size setting
+    // Draw rockets
+    for (const rocket of rockets) {
+      rocket.draw(this.ctx);
+    }
 
-      if (this.gameState.spaceship.imageLoaded) {
-        // Draw spaceship image
-        const imageSize = this.gameState.spaceship.size * 2;
-        this.ctx.drawImage(
-          this.gameState.spaceship.image,
-          -imageSize / 2,
-          -imageSize / 2,
-          imageSize,
-          imageSize
+    // Draw enemies
+    console.log(`Rendering ${enemies.length} enemies`);
+    for (const enemy of enemies) {
+      if (enemy.active) {
+        console.log(`Drawing enemy: ${enemy.type} at (${enemy.x}, ${enemy.y})`);
+        enemy.draw(this.ctx);
+      }
+    }
+
+    // Draw spaceship
+    spaceship.draw(this.ctx);
+
+    // Draw round transition text or game over message
+    if (roundManager.isInTransition() || gameOver) {
+      this.ctx.save();
+      this.ctx.scale(1 / this.devicePixelRatio, 1 / this.devicePixelRatio);
+
+      this.ctx.font = "48px Arial";
+      this.ctx.fillStyle = "#FFFFFF";
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+
+      if (gameOver) {
+        this.ctx.fillText(
+          "GAME OVER",
+          this.canvas.width / 2,
+          this.canvas.height / 2
+        );
+        this.ctx.font = "24px Arial";
+        this.ctx.fillText(
+          "Press R to restart",
+          this.canvas.width / 2,
+          this.canvas.height / 2 + 40
+        );
+      } else if (roundManager.isGameComplete()) {
+        this.ctx.fillText(
+          "THE END",
+          this.canvas.width / 2,
+          this.canvas.height / 2
         );
       } else {
-        // Fallback to triangle if image is not loaded
-        this.ctx.beginPath();
-        this.ctx.moveTo(15, 0);
-        this.ctx.lineTo(-7.5, 7.5);
-        this.ctx.lineTo(-7.5, -7.5);
-        this.ctx.closePath();
-        this.ctx.fillStyle = "#fff";
-        this.ctx.fill();
-        this.ctx.strokeStyle = "#666";
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
+        this.ctx.fillText(
+          `ROUND ${roundManager.getCurrentRound()}`,
+          this.canvas.width / 2,
+          this.canvas.height / 2
+        );
+        this.ctx.font = "24px Arial";
+        this.ctx.fillText(
+          "Good luck, soldier!",
+          this.canvas.width / 2,
+          this.canvas.height / 2 + 40
+        );
       }
 
       this.ctx.restore();
     }
-    this.ctx.restore();
 
-    // Draw score
+    // Draw score and lives
+    this.ctx.save();
+    this.ctx.scale(1 / this.devicePixelRatio, 1 / this.devicePixelRatio);
+
     this.ctx.font = "24px Arial";
-    this.ctx.fillStyle = "white";
-    this.ctx.textAlign = "right";
-    this.ctx.fillText(
-      `Score: ${this.gameState.score}`,
-      this.canvas.width / this.devicePixelRatio - 20,
-      30
-    );
+    this.ctx.fillStyle = "#FFFFFF";
+    this.ctx.textAlign = "left";
+    this.ctx.textBaseline = "top";
+    this.ctx.fillText(`Score: ${this.gameState.score}`, 10, 10);
+    this.ctx.fillText(`Lives: ${this.gameState.lives}`, 10, 40);
+    this.ctx.fillText(`Round: ${roundManager.getCurrentRound()}`, 10, 70);
 
-    // Draw game over message
-    if (this.gameState.gameOver) {
-      this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      this.ctx.fillRect(
-        0,
-        0,
-        this.canvas.width / this.devicePixelRatio,
-        this.canvas.height / this.devicePixelRatio
-      );
-
-      this.ctx.font = "48px Arial";
-      this.ctx.fillStyle = "white";
-      this.ctx.textAlign = "center";
-      this.ctx.fillText(
-        "Game Over!",
-        this.canvas.width / this.devicePixelRatio / 2,
-        this.canvas.height / this.devicePixelRatio / 2
-      );
-
-      this.ctx.font = "24px Arial";
-      this.ctx.fillText(
-        `Final Score: ${this.gameState.score}`,
-        this.canvas.width / this.devicePixelRatio / 2,
-        this.canvas.height / this.devicePixelRatio / 2 + 40
-      );
-
-      this.ctx.fillText(
-        "Press R to restart",
-        this.canvas.width / this.devicePixelRatio / 2,
-        this.canvas.height / this.devicePixelRatio / 2 + 80
-      );
-    }
+    this.ctx.restore();
   }
 
   private gameLoop(): void {
+    // Increment frame count
+    this.gameState.frameCount++;
+    console.log("Game loop running, frame:", this.gameState.frameCount);
+
     this.update();
     this.render();
     this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
   }
 
   public start(): void {
+    console.log("Starting game...");
     if (!this.animationFrameId) {
+      // Start the first round
+      this.gameState.roundManager.startRound();
+      console.log("Game loop starting...");
       this.gameLoop();
     }
   }
@@ -554,8 +600,8 @@ export class GameEngine {
     // Reset game state
     this.gameState = {
       spaceship: new Spaceship(
-        this.canvas.width / this.devicePixelRatio / 2,
-        this.canvas.height / this.devicePixelRatio / 2,
+        this.canvas.width / 2,
+        this.canvas.height / 2,
         this.devicePixelRatio
       ),
       keys: {
@@ -573,8 +619,10 @@ export class GameEngine {
       gameOver: false,
       score: settings.game.initial_score,
       lives: settings.game.initial_lives,
-      enemySpawnTimer: settings.game.enemy_spawn_timer,
-      enemySpawnInterval: settings.game.enemy_spawn_interval,
+      roundManager: new RoundManager(this.canvas),
     };
+
+    // Start the first round
+    this.gameState.roundManager.startRound();
   }
 }

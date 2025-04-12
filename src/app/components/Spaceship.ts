@@ -49,7 +49,7 @@ export class Spaceship {
     this.maxAmmo = 100;
     this.ammoRechargeRate = 0.5;
     this.lastShotTime = 0;
-    this.shotCooldown = 10; // Frames between shots
+    this.shotCooldown = 200; // Milliseconds between shots (changed from frames)
     this.laserSpeed = 10;
 
     // Size properties
@@ -159,16 +159,37 @@ export class Spaceship {
   }
 
   shoot(frameCount: number): Laser | null {
+    const currentTime = Date.now();
     // Check if we have ammo and cooldown has passed
-    if (this.ammo > 0 && frameCount - this.lastShotTime >= this.shotCooldown) {
+    console.log(
+      "Shoot called - Ammo:",
+      this.ammo,
+      "Current time:",
+      currentTime,
+      "Last shot:",
+      this.lastShotTime,
+      "Cooldown:",
+      this.shotCooldown,
+      "Time since last shot:",
+      currentTime - this.lastShotTime
+    );
+
+    if (this.ammo > 0 && currentTime - this.lastShotTime >= this.shotCooldown) {
       this.ammo -= 10; // Use 10 ammo per shot
-      this.lastShotTime = frameCount;
+      this.lastShotTime = currentTime;
 
       // Calculate laser starting position (at the tip of the gun)
       const gunLength = this.size * 1.3;
       const laserX = this.x + Math.cos(this.rotation) * gunLength;
       const laserY = this.y + Math.sin(this.rotation) * gunLength;
 
+      console.log(
+        "Creating laser at:",
+        laserX,
+        laserY,
+        "Rotation:",
+        this.rotation
+      );
       return new Laser(
         laserX,
         laserY,
@@ -178,6 +199,13 @@ export class Spaceship {
       );
     }
 
+    console.log(
+      "Can't shoot:",
+      this.ammo <= 0 ? "No ammo" : "Cooldown not ready",
+      "Time remaining:",
+      Math.max(0, this.shotCooldown - (currentTime - this.lastShotTime)),
+      "ms"
+    );
     return null;
   }
 }

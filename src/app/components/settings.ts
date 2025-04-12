@@ -14,6 +14,16 @@ export const settings = {
     min_enemy_spawn_interval: 120,
     enemy_spawn_timer: 0,
   },
+  rounds: {
+    max_rounds: 10,
+    round_duration: 2000, // Reduced from 5000 to 2000ms for testing
+    enemies_per_round: {
+      scout: [3, 5, 7, 9, 11, 13, 15, 17, 19, 21],
+      fighter: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      destroyer: [0, 1, 1, 2, 2, 3, 3, 4, 4, 5],
+    },
+    spawn_delay: 500, // Reduced from 1000 to 500ms for testing
+  },
   display: {
     device_pixel_ratio: 1.0,
   },

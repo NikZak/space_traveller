@@ -1,35 +1,56 @@
 import { Rocket } from "./Rocket";
 import { settings } from "./settings";
 
+type EnemyType = "scout" | "fighter" | "destroyer";
+
+interface EnemyConfig {
+  size: number;
+  health: number;
+  maxHealth: number;
+  shootCooldown: number;
+  color: string;
+  eyeColor: string;
+  maxAmmo: number;
+  rotationSpeed: number;
+  rotationInertia: number;
+  acceleration: number;
+  deceleration: number;
+  maxSpeed: number;
+  minSpeed: number;
+  accelerationDistance: number;
+  decelerationDistance: number;
+}
+
 export class Enemy {
   x: number;
   y: number;
   velocity: { x: number; y: number };
   rotation: number;
-  size: number;
+  size = 0;
   active: boolean;
-  health: number;
-  maxHealth: number;
-  shootCooldown: number;
+  health = 0;
+  maxHealth = 0;
+  shootCooldown = 0;
   lastShotTime: number;
-  type: "scout" | "fighter" | "destroyer";
-  color: string;
-  eyeColor: string;
+  type: EnemyType;
+  color = "#000000";
+  eyeColor = "#FFFFFF";
   glowIntensity: number;
   glowDirection: number;
   pulseSpeed: number;
   devicePixelRatio: number;
   targetRotation: number;
   rotationSpeed: number;
-  currentSpeed: number; // For destroyer acceleration
-  targetSpeed: number; // For destroyer acceleration
-  ammo: number;
-  maxAmmo: number;
+  currentSpeed: number;
+  targetSpeed: number;
+  ammo = 0;
+  maxAmmo = 0;
+  private config: EnemyConfig;
 
   constructor(
     x: number,
     y: number,
-    type: "scout" | "fighter" | "destroyer" = "scout",
+    type: EnemyType = "scout",
     devicePixelRatio = 1
   ) {
     this.x = x;
@@ -44,51 +65,13 @@ export class Enemy {
     this.rotationSpeed = 0.1;
     this.currentSpeed = 0;
     this.targetSpeed = 0;
-    this.size = 0;
-    this.health = 0;
-    this.maxHealth = 0;
-    this.shootCooldown = 0;
-    this.color = "#000000";
-    this.eyeColor = "#FFFFFF";
     this.velocity = { x: 0, y: 0 };
     this.rotation = 0;
     this.lastShotTime = 0;
-    this.ammo = 0;
-    this.maxAmmo = 0;
 
-    // Set properties based on enemy type
-    switch (type) {
-      case "scout":
-        this.size = settings.game.enemy_sizes.scout;
-        this.health = settings.enemies.scout.health;
-        this.maxHealth = settings.enemies.scout.health;
-        this.shootCooldown = settings.enemies.scout.shoot_cooldown;
-        this.color = "#8B0000"; // Dark red
-        this.eyeColor = "#FF0000"; // Bright red
-        this.maxAmmo = settings.enemies.scout.max_ammo;
-        this.ammo = this.maxAmmo;
-        break;
-      case "fighter":
-        this.size = settings.game.enemy_sizes.fighter;
-        this.health = settings.enemies.fighter.health;
-        this.maxHealth = settings.enemies.fighter.health;
-        this.shootCooldown = settings.enemies.fighter.shoot_cooldown;
-        this.color = "#800080"; // Purple
-        this.eyeColor = "#FF00FF"; // Magenta
-        this.maxAmmo = settings.enemies.fighter.max_ammo;
-        this.ammo = this.maxAmmo;
-        break;
-      case "destroyer":
-        this.size = settings.game.enemy_sizes.destroyer;
-        this.health = settings.enemies.destroyer.health;
-        this.maxHealth = settings.enemies.destroyer.health;
-        this.shootCooldown = settings.enemies.destroyer.shoot_cooldown;
-        this.color = "#000080"; // Navy blue
-        this.eyeColor = "#00FFFF"; // Cyan
-        this.maxAmmo = settings.enemies.destroyer.max_ammo;
-        this.ammo = this.maxAmmo;
-        break;
-    }
+    // Initialize enemy configuration
+    this.config = this.getEnemyConfig(type);
+    this.applyConfig();
 
     // Random initial velocity
     const speed = 1 + Math.random() * 2;
@@ -97,6 +80,78 @@ export class Enemy {
       x: Math.cos(angle) * speed,
       y: Math.sin(angle) * speed,
     };
+  }
+
+  private getEnemyConfig(type: EnemyType): EnemyConfig {
+    switch (type) {
+      case "scout":
+        return {
+          size: settings.game.enemy_sizes.scout,
+          health: settings.enemies.scout.health,
+          maxHealth: settings.enemies.scout.health,
+          shootCooldown: settings.enemies.scout.shoot_cooldown,
+          color: "#8B0000",
+          eyeColor: "#FF0000",
+          maxAmmo: settings.enemies.scout.max_ammo,
+          rotationSpeed: settings.enemies.scout.rotation_speed,
+          rotationInertia: settings.enemies.scout.rotation_inertia,
+          acceleration: settings.enemies.scout.acceleration,
+          deceleration: settings.enemies.scout.deceleration,
+          maxSpeed: settings.enemies.scout.max_speed,
+          minSpeed: settings.enemies.scout.min_speed,
+          accelerationDistance: settings.enemies.scout.acceleration_distance,
+          decelerationDistance: settings.enemies.scout.deceleration_distance,
+        };
+      case "fighter":
+        return {
+          size: settings.game.enemy_sizes.fighter,
+          health: settings.enemies.fighter.health,
+          maxHealth: settings.enemies.fighter.health,
+          shootCooldown: settings.enemies.fighter.shoot_cooldown,
+          color: "#800080",
+          eyeColor: "#FF00FF",
+          maxAmmo: settings.enemies.fighter.max_ammo,
+          rotationSpeed: settings.enemies.fighter.rotation_speed,
+          rotationInertia: settings.enemies.fighter.rotation_inertia,
+          acceleration: settings.enemies.fighter.acceleration,
+          deceleration: settings.enemies.fighter.deceleration,
+          maxSpeed: settings.enemies.fighter.max_speed,
+          minSpeed: settings.enemies.fighter.min_speed,
+          accelerationDistance: settings.enemies.fighter.acceleration_distance,
+          decelerationDistance: settings.enemies.fighter.deceleration_distance,
+        };
+      case "destroyer":
+        return {
+          size: settings.game.enemy_sizes.destroyer,
+          health: settings.enemies.destroyer.health,
+          maxHealth: settings.enemies.destroyer.health,
+          shootCooldown: settings.enemies.destroyer.shoot_cooldown,
+          color: "#000080",
+          eyeColor: "#00FFFF",
+          maxAmmo: settings.enemies.destroyer.max_ammo,
+          rotationSpeed: settings.enemies.destroyer.rotation_speed,
+          rotationInertia: settings.enemies.destroyer.rotation_inertia,
+          acceleration: settings.enemies.destroyer.acceleration,
+          deceleration: settings.enemies.destroyer.deceleration,
+          maxSpeed: settings.enemies.destroyer.max_speed,
+          minSpeed: settings.enemies.destroyer.min_speed,
+          accelerationDistance:
+            settings.enemies.destroyer.acceleration_distance,
+          decelerationDistance:
+            settings.enemies.destroyer.deceleration_distance,
+        };
+    }
+  }
+
+  private applyConfig(): void {
+    this.size = this.config.size;
+    this.health = this.config.health;
+    this.maxHealth = this.config.maxHealth;
+    this.shootCooldown = this.config.shootCooldown;
+    this.color = this.config.color;
+    this.eyeColor = this.config.eyeColor;
+    this.maxAmmo = this.config.maxAmmo;
+    this.ammo = this.maxAmmo;
   }
 
   update(canvas: HTMLCanvasElement, playerX: number, playerY: number): void {
@@ -108,115 +163,9 @@ export class Enemy {
     const distanceToPlayer = Math.sqrt(dx * dx + dy * dy);
     this.targetRotation = Math.atan2(dy, dx);
 
-    // Update rotation based on enemy type
-    const angleDiff = this.targetRotation - this.rotation;
-    const normalizedAngleDiff =
-      ((angleDiff + Math.PI) % (Math.PI * 2)) - Math.PI;
-
-    switch (this.type) {
-      case "scout": {
-        // Apply rotation inertia
-        const targetRotationSpeed =
-          normalizedAngleDiff * settings.enemies.scout.rotation_speed;
-        this.rotationSpeed =
-          this.rotationSpeed * settings.enemies.scout.rotation_inertia +
-          targetRotationSpeed * (1 - settings.enemies.scout.rotation_inertia);
-        this.rotation += this.rotationSpeed;
-
-        // Calculate target speed based on distance to player
-        if (distanceToPlayer > settings.enemies.scout.acceleration_distance) {
-          this.targetSpeed = settings.enemies.scout.max_speed;
-        } else if (
-          distanceToPlayer < settings.enemies.scout.deceleration_distance
-        ) {
-          this.targetSpeed = settings.enemies.scout.min_speed;
-        }
-
-        // Apply acceleration/deceleration
-        if (this.currentSpeed < this.targetSpeed) {
-          this.currentSpeed = Math.min(
-            this.currentSpeed + settings.enemies.scout.acceleration,
-            this.targetSpeed
-          );
-        } else if (this.currentSpeed > this.targetSpeed) {
-          this.currentSpeed = Math.max(
-            this.currentSpeed - settings.enemies.scout.deceleration,
-            this.targetSpeed
-          );
-        }
-        break;
-      }
-
-      case "fighter": {
-        // Apply rotation inertia
-        const fighterTargetRotationSpeed =
-          normalizedAngleDiff * settings.enemies.fighter.rotation_speed;
-        this.rotationSpeed =
-          this.rotationSpeed * settings.enemies.fighter.rotation_inertia +
-          fighterTargetRotationSpeed *
-            (1 - settings.enemies.fighter.rotation_inertia);
-        this.rotation += this.rotationSpeed;
-
-        // Calculate target speed based on distance to player
-        if (distanceToPlayer > settings.enemies.fighter.acceleration_distance) {
-          this.targetSpeed = settings.enemies.fighter.max_speed;
-        } else if (
-          distanceToPlayer < settings.enemies.fighter.deceleration_distance
-        ) {
-          this.targetSpeed = settings.enemies.fighter.min_speed;
-        }
-
-        // Apply acceleration/deceleration
-        if (this.currentSpeed < this.targetSpeed) {
-          this.currentSpeed = Math.min(
-            this.currentSpeed + settings.enemies.fighter.acceleration,
-            this.targetSpeed
-          );
-        } else if (this.currentSpeed > this.targetSpeed) {
-          this.currentSpeed = Math.max(
-            this.currentSpeed - settings.enemies.fighter.deceleration,
-            this.targetSpeed
-          );
-        }
-        break;
-      }
-
-      case "destroyer": {
-        // Apply rotation inertia
-        const destroyerTargetRotationSpeed =
-          normalizedAngleDiff * settings.enemies.destroyer.rotation_speed;
-        this.rotationSpeed =
-          this.rotationSpeed * settings.enemies.destroyer.rotation_inertia +
-          destroyerTargetRotationSpeed *
-            (1 - settings.enemies.destroyer.rotation_inertia);
-        this.rotation += this.rotationSpeed;
-
-        // Calculate target speed based on distance to player
-        if (
-          distanceToPlayer > settings.enemies.destroyer.acceleration_distance
-        ) {
-          this.targetSpeed = settings.enemies.destroyer.max_speed;
-        } else if (
-          distanceToPlayer < settings.enemies.destroyer.deceleration_distance
-        ) {
-          this.targetSpeed = settings.enemies.destroyer.min_speed;
-        }
-
-        // Apply acceleration/deceleration
-        if (this.currentSpeed < this.targetSpeed) {
-          this.currentSpeed = Math.min(
-            this.currentSpeed + settings.enemies.destroyer.acceleration,
-            this.targetSpeed
-          );
-        } else if (this.currentSpeed > this.targetSpeed) {
-          this.currentSpeed = Math.max(
-            this.currentSpeed - settings.enemies.destroyer.deceleration,
-            this.targetSpeed
-          );
-        }
-        break;
-      }
-    }
+    // Update rotation and speed
+    this.updateRotation();
+    this.updateSpeed(distanceToPlayer);
 
     // Apply velocity based on current rotation
     this.velocity.x = Math.cos(this.rotation) * this.currentSpeed;
@@ -227,12 +176,51 @@ export class Enemy {
     this.y += this.velocity.y;
 
     // Update glow effect
+    this.updateGlow();
+
+    // Wrap around screen
+    this.wrapAroundScreen(canvas);
+  }
+
+  private updateRotation(): void {
+    const angleDiff = this.targetRotation - this.rotation;
+    const normalizedAngleDiff =
+      ((angleDiff + Math.PI) % (Math.PI * 2)) - Math.PI;
+    const targetRotationSpeed = normalizedAngleDiff * this.config.rotationSpeed;
+    this.rotationSpeed =
+      this.rotationSpeed * this.config.rotationInertia +
+      targetRotationSpeed * (1 - this.config.rotationInertia);
+    this.rotation += this.rotationSpeed;
+  }
+
+  private updateSpeed(distanceToPlayer: number): void {
+    if (distanceToPlayer > this.config.accelerationDistance) {
+      this.targetSpeed = this.config.maxSpeed;
+    } else if (distanceToPlayer < this.config.decelerationDistance) {
+      this.targetSpeed = this.config.minSpeed;
+    }
+
+    if (this.currentSpeed < this.targetSpeed) {
+      this.currentSpeed = Math.min(
+        this.currentSpeed + this.config.acceleration,
+        this.targetSpeed
+      );
+    } else if (this.currentSpeed > this.targetSpeed) {
+      this.currentSpeed = Math.max(
+        this.currentSpeed - this.config.deceleration,
+        this.targetSpeed
+      );
+    }
+  }
+
+  private updateGlow(): void {
     this.glowIntensity += this.glowDirection * this.pulseSpeed;
     if (this.glowIntensity > 0.8 || this.glowIntensity < 0.2) {
       this.glowDirection *= -1;
     }
+  }
 
-    // Wrap around screen - use the CSS dimensions (visible area) instead of canvas dimensions
+  private wrapAroundScreen(canvas: HTMLCanvasElement): void {
     const visibleWidth = canvas.width / this.devicePixelRatio;
     const visibleHeight = canvas.height / this.devicePixelRatio;
 
@@ -240,6 +228,46 @@ export class Enemy {
     if (this.x > visibleWidth + this.size) this.x = -this.size;
     if (this.y < -this.size) this.y = visibleHeight + this.size;
     if (this.y > visibleHeight + this.size) this.y = -this.size;
+  }
+
+  private drawHealthBar(ctx: CanvasRenderingContext2D): void {
+    const barWidth = this.size * 2;
+    const barHeight = this.size * 0.2;
+    const healthPercentage = this.health / this.maxHealth;
+
+    // Health bar background
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-this.size, -this.size * 1.5, barWidth, barHeight);
+
+    // Health bar
+    ctx.fillStyle =
+      healthPercentage > 0.5
+        ? "#0f0"
+        : healthPercentage > 0.25
+        ? "#ff0"
+        : "#f00";
+    ctx.fillRect(
+      -this.size,
+      -this.size * 1.5,
+      barWidth * healthPercentage,
+      barHeight
+    );
+  }
+
+  private drawAmmoBar(ctx: CanvasRenderingContext2D): void {
+    const barWidth = this.size * 2;
+    const barHeight = this.size * 0.1;
+    const ammoPercentage = this.ammo / this.maxAmmo;
+    const ammoBarY = -this.size * 1.5 - barHeight - 2;
+
+    // Ammo bar background
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-this.size, ammoBarY, barWidth, barHeight);
+
+    // Ammo bar with improved visibility
+    const ammoColor = "#4DA6FF"; // Lighter, more visible blue
+    ctx.fillStyle = ammoColor;
+    ctx.fillRect(-this.size, ammoBarY, barWidth * ammoPercentage, barHeight);
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -279,8 +307,9 @@ export class Enemy {
         break;
     }
 
-    // Draw health bar
+    // Draw health and ammo bars
     this.drawHealthBar(ctx);
+    this.drawAmmoBar(ctx);
 
     ctx.restore();
   }
@@ -410,48 +439,6 @@ export class Enemy {
       ctx.lineWidth = 3;
       ctx.stroke();
     }
-  }
-
-  private drawHealthBar(ctx: CanvasRenderingContext2D): void {
-    const barWidth = this.size * 2;
-    const barHeight = this.size * 0.2;
-    const healthPercentage = this.health / this.maxHealth;
-
-    // Health bar background
-    ctx.fillStyle = "#333";
-    ctx.fillRect(-this.size, -this.size * 1.5, barWidth, barHeight);
-
-    // Health bar
-    ctx.fillStyle =
-      healthPercentage > 0.5
-        ? "#0f0"
-        : healthPercentage > 0.25
-        ? "#ff0"
-        : "#f00";
-    ctx.fillRect(
-      -this.size,
-      -this.size * 1.5,
-      barWidth * healthPercentage,
-      barHeight
-    );
-
-    // Ammo bar
-    const ammoPercentage = this.ammo / this.maxAmmo;
-    const ammoBarHeight = this.size * 0.1;
-    const ammoBarY = -this.size * 1.5 - ammoBarHeight - 2;
-
-    // Ammo bar background
-    ctx.fillStyle = "#333";
-    ctx.fillRect(-this.size, ammoBarY, barWidth, ammoBarHeight);
-
-    // Ammo bar
-    ctx.fillStyle = "#00f";
-    ctx.fillRect(
-      -this.size,
-      ammoBarY,
-      barWidth * ammoPercentage,
-      ammoBarHeight
-    );
   }
 
   shoot(frameCount: number, targetX: number, targetY: number): Rocket | null {
