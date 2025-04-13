@@ -237,8 +237,13 @@ export class GameEngine {
         enemy.active &&
         enemy.checkCollision(spaceship.x, spaceship.y, spaceship.size)
       ) {
-        this.createExplosion(spaceship.x, spaceship.y, spaceship.size);
-        this.createExplosion(enemy.x, enemy.y, enemy.size);
+        this.createExplosion(
+          spaceship.x,
+          spaceship.y,
+          spaceship.size,
+          enemy.type
+        );
+        this.createExplosion(enemy.x, enemy.y, enemy.size, enemy.type);
         enemy.active = false;
         roundManager.enemyDestroyed();
         this.handleSpaceshipDeath();
@@ -267,7 +272,7 @@ export class GameEngine {
       for (const planet of planets) {
         if (planet.checkCollision(enemy.x, enemy.y, enemy.size)) {
           // Enemy dies when hitting a planet and awards points
-          this.createExplosion(enemy.x, enemy.y, enemy.size);
+          this.createExplosion(enemy.x, enemy.y, enemy.size, enemy.type);
           enemy.active = false;
           roundManager.enemyDestroyed();
           // Add score based on enemy type
@@ -296,8 +301,8 @@ export class GameEngine {
         if (!enemy2.active) continue;
 
         if (enemy1.checkCollision(enemy2.x, enemy2.y, enemy2.size)) {
-          this.createExplosion(enemy1.x, enemy1.y, enemy1.size);
-          this.createExplosion(enemy2.x, enemy2.y, enemy2.size);
+          this.createExplosion(enemy1.x, enemy1.y, enemy1.size, enemy1.type);
+          this.createExplosion(enemy2.x, enemy2.y, enemy2.size, enemy2.type);
           enemy1.active = false;
           enemy2.active = false;
           roundManager.enemyDestroyed();
@@ -319,7 +324,7 @@ export class GameEngine {
           // Enemy takes damage
           if (enemy.takeDamage(10)) {
             // Enemy destroyed
-            this.createExplosion(enemy.x, enemy.y, enemy.size);
+            this.createExplosion(enemy.x, enemy.y, enemy.size, enemy.type);
             roundManager.enemyDestroyed();
             // Add score based on enemy type
             switch (enemy.type) {
@@ -380,23 +385,27 @@ export class GameEngine {
         if (!enemy.active) continue;
 
         if (enemy.checkCollision(rocket.x, rocket.y, rocket.size)) {
-          this.createExplosion(enemy.x, enemy.y, enemy.size);
           this.createExplosion(rocket.x, rocket.y, rocket.size);
-          enemy.active = false;
           rocket.active = false;
           rocketHit = true;
-          roundManager.enemyDestroyed();
-          // Add score based on enemy type
-          switch (enemy.type) {
-            case "scout":
-              this.gameState.score += settings.enemies.scout_score;
-              break;
-            case "fighter":
-              this.gameState.score += settings.enemies.fighter_score;
-              break;
-            case "destroyer":
-              this.gameState.score += settings.enemies.destroyer_score;
-              break;
+
+          // Deal damage to enemy instead of instantly destroying it
+          if (enemy.takeDamage(20)) {
+            // Enemy destroyed
+            this.createExplosion(enemy.x, enemy.y, enemy.size, enemy.type);
+            roundManager.enemyDestroyed();
+            // Add score based on enemy type
+            switch (enemy.type) {
+              case "scout":
+                this.gameState.score += settings.enemies.scout_score;
+                break;
+              case "fighter":
+                this.gameState.score += settings.enemies.fighter_score;
+                break;
+              case "destroyer":
+                this.gameState.score += settings.enemies.destroyer_score;
+                break;
+            }
           }
           break;
         }
@@ -438,8 +447,28 @@ export class GameEngine {
     }
   }
 
-  private createExplosion(x: number, y: number, size: number): void {
-    const explosion = new Explosion(x, y, size, this.devicePixelRatio);
+  private createExplosion(
+    x: number,
+    y: number,
+    size: number,
+    enemyType?: "scout" | "fighter" | "destroyer"
+  ): void {
+    // Scale explosion size based on enemy type
+    let explosionSize = size;
+    if (enemyType) {
+      switch (enemyType) {
+        case "scout":
+          explosionSize = size; // Regular explosion
+          break;
+        case "fighter":
+          explosionSize = size * 3; // Larger explosion
+          break;
+        case "destroyer":
+          explosionSize = size * 5; // Massive explosion
+          break;
+      }
+    }
+    const explosion = new Explosion(x, y, explosionSize, this.devicePixelRatio);
     this.gameState.explosions.push(explosion);
   }
 
