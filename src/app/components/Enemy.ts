@@ -446,8 +446,8 @@ export class Enemy {
       this.lastShotTime = frameCount;
       this.ammo--;
 
-      // Calculate rocket spawn position
-      const spawnDistance = this.size * 1.2;
+      // Calculate rocket spawn position - increased distance to prevent immediate collision
+      const spawnDistance = this.size * 2.5; // Increased from 1.2 to 2.5
       const spawnX = this.x + Math.cos(this.rotation) * spawnDistance;
       const spawnY = this.y + Math.sin(this.rotation) * spawnDistance;
 

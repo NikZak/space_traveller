@@ -5,6 +5,7 @@ import { Enemy } from "./Enemy";
 import type { Rocket } from "./Rocket";
 import { settings } from "./settings";
 import { RoundManager } from "./RoundManager";
+import { Explosion } from "./Explosion";
 
 export interface GameState {
   spaceship: Spaceship;
@@ -13,6 +14,7 @@ export interface GameState {
   planets: Planet[];
   enemies: Enemy[];
   rockets: Rocket[];
+  explosions: Explosion[];
   frameCount: number;
   gameOver: boolean;
   score: number;
@@ -56,6 +58,7 @@ export class GameEngine {
       planets: this.generatePlanets(),
       enemies: [],
       rockets: [],
+      explosions: [],
       frameCount: 0,
       gameOver: false,
       score: settings.game.initial_score,
@@ -222,6 +225,7 @@ export class GameEngine {
     // Check spaceship collision with planets
     for (const planet of planets) {
       if (planet.checkCollision(spaceship.x, spaceship.y, spaceship.size)) {
+        this.createExplosion(spaceship.x, spaceship.y, spaceship.size);
         this.handleSpaceshipDeath();
         return;
       }
@@ -233,6 +237,10 @@ export class GameEngine {
         enemy.active &&
         enemy.checkCollision(spaceship.x, spaceship.y, spaceship.size)
       ) {
+        this.createExplosion(spaceship.x, spaceship.y, spaceship.size);
+        this.createExplosion(enemy.x, enemy.y, enemy.size);
+        enemy.active = false;
+        roundManager.enemyDestroyed();
         this.handleSpaceshipDeath();
         return;
       }
@@ -244,6 +252,8 @@ export class GameEngine {
         rocket.active &&
         rocket.checkCollision(spaceship.x, spaceship.y, spaceship.size)
       ) {
+        this.createExplosion(spaceship.x, spaceship.y, spaceship.size);
+        rocket.active = false;
         this.handleSpaceshipDeath();
         return;
       }
@@ -257,6 +267,7 @@ export class GameEngine {
       for (const planet of planets) {
         if (planet.checkCollision(enemy.x, enemy.y, enemy.size)) {
           // Enemy dies when hitting a planet and awards points
+          this.createExplosion(enemy.x, enemy.y, enemy.size);
           enemy.active = false;
           roundManager.enemyDestroyed();
           // Add score based on enemy type
@@ -275,6 +286,26 @@ export class GameEngine {
       }
     }
 
+    // Check enemy collisions with each other
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const enemy1 = enemies[i];
+      if (!enemy1.active) continue;
+
+      for (let j = i - 1; j >= 0; j--) {
+        const enemy2 = enemies[j];
+        if (!enemy2.active) continue;
+
+        if (enemy1.checkCollision(enemy2.x, enemy2.y, enemy2.size)) {
+          this.createExplosion(enemy1.x, enemy1.y, enemy1.size);
+          this.createExplosion(enemy2.x, enemy2.y, enemy2.size);
+          enemy1.active = false;
+          enemy2.active = false;
+          roundManager.enemyDestroyed();
+          roundManager.enemyDestroyed();
+        }
+      }
+    }
+
     // Check laser collisions with enemies
     for (let i = lasers.length - 1; i >= 0; i--) {
       const laser = lasers[i];
@@ -288,6 +319,7 @@ export class GameEngine {
           // Enemy takes damage
           if (enemy.takeDamage(10)) {
             // Enemy destroyed
+            this.createExplosion(enemy.x, enemy.y, enemy.size);
             roundManager.enemyDestroyed();
             // Add score based on enemy type
             switch (enemy.type) {
@@ -322,6 +354,7 @@ export class GameEngine {
         if (!rocket.active) continue;
 
         if (rocket.checkCollision(laser.x, laser.y, laser.size)) {
+          this.createExplosion(rocket.x, rocket.y, rocket.size);
           rocket.active = false;
           this.gameState.score += settings.rockets.rocket_score;
           laserHit = true;
@@ -333,6 +366,81 @@ export class GameEngine {
         lasers.splice(i, 1);
       }
     }
+
+    // Check rocket collisions with enemies and other rockets
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const rocket = rockets[i];
+      if (!rocket.active) continue;
+
+      let rocketHit = false;
+
+      // Check collision with enemies
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        const enemy = enemies[j];
+        if (!enemy.active) continue;
+
+        if (enemy.checkCollision(rocket.x, rocket.y, rocket.size)) {
+          this.createExplosion(enemy.x, enemy.y, enemy.size);
+          this.createExplosion(rocket.x, rocket.y, rocket.size);
+          enemy.active = false;
+          rocket.active = false;
+          rocketHit = true;
+          roundManager.enemyDestroyed();
+          // Add score based on enemy type
+          switch (enemy.type) {
+            case "scout":
+              this.gameState.score += settings.enemies.scout_score;
+              break;
+            case "fighter":
+              this.gameState.score += settings.enemies.fighter_score;
+              break;
+            case "destroyer":
+              this.gameState.score += settings.enemies.destroyer_score;
+              break;
+          }
+          break;
+        }
+      }
+
+      // Check collision with other rockets if not already hit an enemy
+      if (!rocketHit) {
+        for (let j = rockets.length - 1; j >= 0; j--) {
+          if (i === j) continue; // Skip self
+          const otherRocket = rockets[j];
+          if (!otherRocket.active) continue;
+
+          if (otherRocket.checkCollision(rocket.x, rocket.y, rocket.size)) {
+            this.createExplosion(rocket.x, rocket.y, rocket.size);
+            this.createExplosion(
+              otherRocket.x,
+              otherRocket.y,
+              otherRocket.size
+            );
+            rocket.active = false;
+            otherRocket.active = false;
+            rocketHit = true;
+            break;
+          }
+        }
+      }
+
+      // Only check planet collisions if rocket hasn't hit anything else
+      if (!rocketHit) {
+        for (const planet of planets) {
+          if (planet.checkCollision(rocket.x, rocket.y, rocket.size)) {
+            // Create a larger explosion for rocket-planet collisions
+            this.createExplosion(rocket.x, rocket.y, rocket.size * 3);
+            rocket.active = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  private createExplosion(x: number, y: number, size: number): void {
+    const explosion = new Explosion(x, y, size, this.devicePixelRatio);
+    this.gameState.explosions.push(explosion);
   }
 
   private handleSpaceshipDeath(): void {
@@ -358,9 +466,16 @@ export class GameEngine {
       return;
     }
 
-    const { spaceship, lasers, rockets, enemies, roundManager } =
+    const { spaceship, lasers, rockets, enemies, explosions, roundManager } =
       this.gameState;
     const canvas = this.canvas;
+
+    // Update explosions
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      if (!explosions[i].update()) {
+        explosions.splice(i, 1);
+      }
+    }
 
     // Update spaceship
     spaceship.update(canvas);
@@ -454,6 +569,7 @@ export class GameEngine {
       planets,
       enemies,
       rockets,
+      explosions,
       roundManager,
       gameOver,
     } = this.gameState;
@@ -464,6 +580,11 @@ export class GameEngine {
     // Draw planets
     for (const planet of planets) {
       planet.draw(this.ctx);
+    }
+
+    // Draw explosions
+    for (const explosion of explosions) {
+      explosion.draw(this.ctx);
     }
 
     // Draw lasers
@@ -584,6 +705,7 @@ export class GameEngine {
       planets: [],
       enemies: [],
       rockets: [],
+      explosions: [],
       frameCount: 0,
       gameOver: true,
       score: 0,
@@ -611,6 +733,7 @@ export class GameEngine {
       planets: this.generatePlanets(),
       enemies: [],
       rockets: [],
+      explosions: [],
       frameCount: 0,
       gameOver: false,
       score: settings.game.initial_score,
